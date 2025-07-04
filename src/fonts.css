@@ -1,0 +1,26 @@
+@font-face {
+    font-family: 'Gotham';
+    src: url('./fonts/Gotham-Medium.otf') format('opentype');
+    font-weight: bold;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'AmpleSoft';
+    src: url('./fonts/AmpleSoft.otf') format('opentype');
+}
+@font-face {
+    font-family: 'AmpleSoftMedium';
+    src: url(./fonts/AmpleSoft\ Medium.otf) format('opentype');
+}
+@font-face {
+    font-family: 'AmpleSoftThin';
+    src: url(./fonts/AmpleSoft\ Thin.otf) format('opentype');
+}
+@font-face {
+    font-family: 'AmpleSoftBold';
+    src: url(./fonts/AmpleSoft\ Bold.otf) format('opentype');
+}
+@font-face {
+    font-family: 'GothamBook';
+    src: url(./fonts/Gotham-Book.otf) format('opentype');
+}
