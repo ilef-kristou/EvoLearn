@@ -18,7 +18,7 @@ body {
 }
 
 .highlight {
-  color: var(--light-blue);
+  color: #2C3E50;
   font-weight: bold;
 }
 
@@ -47,7 +47,7 @@ body {
 }
 
 .cta-button {
-  background-color: var(--light-blue);
+  background-color: #2C3E50;
   color: var(--white);
   padding: 15px 30px;
   font-size: 1.1rem;
@@ -259,7 +259,7 @@ body {
 }
 
 .card-button {
-  background-color: var(--light-blue);
+  background-color: #2C3E50;
   color: var(--white);
   border: none;
   padding: 10px 20px;
@@ -282,8 +282,8 @@ body {
   gap: 10px;
   margin: 50px auto 0;
   background: transparent;
-  color: var(--light-blue);
-  border: 2px solid var(--light-blue);
+  color: #2C3E50;
+  border: 2px solid #2C3E50;
   padding: 12px 30px;
   border-radius: 30px;
   cursor: pointer;

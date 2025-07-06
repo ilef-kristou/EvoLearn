@@ -31,7 +31,7 @@
     animation: fadeIn 0.3s ease-out;
   
     /* Ajoute ces lignes 👇 */
-    max-height: 600px;
+    max-height: 540px;
     overflow-y: auto;
   }
   

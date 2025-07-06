@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import "./style.css";
 import logo from "../assets/images/log.jpg";
 import "../fonts.css";
-//import AuthPopup from "../AuthPopup"; // Assurez-vous d'avoir créé ce composant
+import AuthPopup from "../AuthPopup"; // Assurez-vous d'avoir créé ce composant
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -40,13 +40,13 @@ const Header = () => {
           <nav className={`nav ${isMenuOpen ? "nav-open" : ""}`}>
             <ul>
               <li>
-                <Link to="/" className="nav-link" onClick={() => setIsMenuOpen(false)}>Accueil</Link>
+                <Link to="/" className="nav-link1" onClick={() => setIsMenuOpen(false)}>Accueil</Link>
               </li>
               <li>
-                <Link to="/formations" className="nav-link" onClick={() => setIsMenuOpen(false)}>Formations</Link>
+                <Link to="/formations" className="nav-link1" onClick={() => setIsMenuOpen(false)}>Formations</Link>
               </li>
               <li>
-                <a href="#login" className="nav-link contact-link" onClick={handleAuthClick}>
+                <a href="#login" className="nav-link1 contact-link" onClick={handleAuthClick}>
                   Se connecter
                 </a>
               </li>
@@ -55,6 +55,9 @@ const Header = () => {
         </div>
       </header>
 
+      {showAuthPopup && (
+        <AuthPopup onClose={() => setShowAuthPopup(false)} />
+      )}
     </>
   );
 };

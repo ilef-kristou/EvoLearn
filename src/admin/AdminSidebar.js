@@ -27,7 +27,7 @@ const AdminSidebar = () => {
       ),
       subItems: [
         { title: 'Formateurs', path: '/admin/formateurs' },
-        { title: 'Chargés de Formation', path: '/admin/ChargéFormations' },
+        { title: 'Chargés de Formation', path: '/admin/ChargeFormations' },
         { title: 'Participants', path: '/admin/participants' }
       ]
     }

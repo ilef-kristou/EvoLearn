@@ -12,6 +12,9 @@ import equipe from "./assets/images/log.jpg";
 import formation1 from "./assets/images/11.png";
 import formation2 from "./assets/images/12.png";
 import formation3 from "./assets/images/13.png";
+import AdminSidebar from "./admin/AdminSidebar";
+import Formateurs from "./admin/Formateurs"
+import ChargeFormations from "./admin/ChargeFormations";
 
 function App() {
   const navigate = useNavigate();
@@ -48,6 +51,9 @@ function App() {
     <div className="App">
       <Header />
       <Routes>
+      <Route path="/admin/formateurs" element={<Formateurs />} />
+      <Route path="/admin/ChargeFormations" element={<ChargeFormations />} />
+      <Route path="/admin" element={<AdminSidebar />}>  </Route>
         <Route path="/" element={
           <>
             <div className="sectionOne">
@@ -155,7 +161,9 @@ function App() {
             </section>
           </>
         } />
+        
       </Routes>
+
       <Footer />
     </div>
   );
