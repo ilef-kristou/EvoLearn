@@ -9,8 +9,11 @@ const AuthPopup = ({ onClose }) => {
     email: '',
     password: '',
     birthDate: '',
-    educationLevel: ''
+    educationLevel: '',
+    phone: ''
   });
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -20,14 +23,68 @@ const AuthPopup = ({ onClose }) => {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log(isLogin ? 'Connexion' : 'Inscription', formData);
+    setMessage('');
+    setError('');
+    try {
+      if (isLogin) {
+        // Connexion
+        const res = await fetch('http://localhost:8000/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.token) {
+            localStorage.setItem('jwt', data.token);
+          }
+          setMessage('Connexion réussie !');
+          // Redirection selon le rôle
+          if (data.user && data.user.role === 'formateur') {
+            window.location.href = '/formateur/mon-profil';
+          } else {
+            window.location.href = '/participant/mon-profil';
+          }
+        } else {
+          const data = await res.json();
+          setError(data.message || 'Erreur lors de la connexion');
+        }
+      } else {
+        // Inscription
+        const res = await fetch('http://localhost:8000/api/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nom: formData.lastName,
+            prenom: formData.firstName,
+            email: formData.email,
+            password: formData.password,
+            password_confirmation: formData.password,
+            role: 'participant',
+            telephone: formData.phone,
+            niveau: formData.educationLevel,
+            date_naissance: formData.birthDate
+          })
+        });
+        if (res.ok) {
+          setMessage('Inscription réussie !');
+        } else {
+          const data = await res.json();
+          setError(data.message || 'Erreur lors de l\'inscription');
+        }
+      }
+    } catch (err) {
+      setError('Erreur réseau ou serveur');
+    }
   };
 
   const educationLevels = [
     "Baccalauréat",
-    "Bac+2",
     "Licence",
     "Master",
     "Doctorat",
@@ -94,6 +151,22 @@ const AuthPopup = ({ onClose }) => {
               </div>
 
               <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="votre@email.com"
+                  required
+                />
+                <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
+                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+              </div>
+
+              <div className="form-group">
                 <label htmlFor="birthDate">Date de naissance</label>
                 <input
                   type="date"
@@ -127,43 +200,78 @@ const AuthPopup = ({ onClose }) => {
                   <path d="M12 3L1 9l11 6 9-4.91V17h2V9M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
                 </svg>
               </div>
+
+              <div className="form-group">
+                <label htmlFor="phone">Téléphone</label>
+                <input
+                  type="text"
+                  id="phone"
+                  name="phone"
+                  value={formData.phone}
+                  onChange={handleChange}
+                  placeholder="Votre numéro de téléphone"
+                  required
+                />
+                <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
+                  <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.11-.21c1.21.49 2.53.76 3.88.76a1 1 0 011 1V20a1 1 0 01-1 1C10.07 21 3 13.93 3 5a1 1 0 011-1h3.5a1 1 0 011 1c0 1.35.26 2.67.76 3.88a1 1 0 01-.21 1.11l-2.2 2.2z"/>
+                </svg>
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="password">Mot de passe</label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Créez un mot de passe"
+                  required
+                  minLength="6"
+                />
+                <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/>
+                </svg>
+              </div>
             </>
           )}
 
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="votre@email.com"
-              required
-            />
-            <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
-              <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
-            </svg>
-          </div>
+          {isLogin && (
+            <>
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="votre@email.com"
+                  required
+                />
+                <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
+                  <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
+                </svg>
+              </div>
 
-          <div className="form-group">
-            <label htmlFor="password">Mot de passe</label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              placeholder={isLogin ? "Votre mot de passe" : "Créez un mot de passe"}
-              required
-              minLength="6"
-            />
-            <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
-              <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/>
-            </svg>
-          </div>
-
-          
+              <div className="form-group">
+                <label htmlFor="password">Mot de passe</label>
+                <input
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Votre mot de passe"
+                  required
+                  minLength="6"
+                />
+                <svg className="input-icon" width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
+                  <path d="M18 8h-1V6c0-2.76-2.24-5-5-5S7 3.24 7 6v2H6c-1.1 0-2 .9-2 2v10c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V10c0-1.1-.9-2-2-2zm-6 9c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2zM9 8V6c0-1.66 1.34-3 3-3s3 1.34 3 3v2H9z"/>
+                </svg>
+              </div>
+            </>
+          )}
 
           <button type="submit" className="submit-btn">
             {isLogin ? 'Se connecter' : "S'inscrire"}
@@ -171,6 +279,8 @@ const AuthPopup = ({ onClose }) => {
               <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
           </button>
+          {message && <div className="success-message">{message}</div>}
+          {error && <div className="error-message">{error}</div>}
         </form>
       </div>
     </div>

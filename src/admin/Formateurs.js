@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import AdminSidebar from './AdminSidebar';
 import './Formateurs.css';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Fonction pour générer des images de profil aléatoires
 const getProfileImage = (id) => {
@@ -17,6 +18,7 @@ const Formateurs = () => {
       prenom: 'Dupont', 
       email: 'jean@example.com', 
       specialite: 'React JS',
+      telephone: '0601020304',
       image: getProfileImage(1)
     },
     { 
@@ -25,6 +27,7 @@ const Formateurs = () => {
       prenom: 'Martin', 
       email: 'marie@example.com', 
       specialite: 'Node.js',
+      telephone: '0605060708',
       image: getProfileImage(2)
     },
     { 
@@ -33,6 +36,7 @@ const Formateurs = () => {
       prenom: 'Lambert', 
       email: 'pierre@example.com', 
       specialite: 'UX Design',
+      telephone: '0611223344',
       image: getProfileImage(3)
     },
     { 
@@ -41,6 +45,7 @@ const Formateurs = () => {
       prenom: 'Bernard', 
       email: 'sophie@example.com', 
       specialite: 'React JS',
+      telephone: '0677889900',
       image: getProfileImage(4)
     }
   ]);
@@ -53,12 +58,17 @@ const Formateurs = () => {
     prenom: '',
     email: '',
     specialite: '',
+    telephone: '',
     image: ''
   });
   
   const [filtreSpecialite, setFiltreSpecialite] = useState('Tous');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4);
   
   const specialites = ['Tous', ...new Set(formateurs.map(f => f.specialite))];
 
@@ -72,10 +82,19 @@ const Formateurs = () => {
     return matchesSpecialite && matchesSearch;
   });
 
+  // Logique de pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = formateursFiltres.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(formateursFiltres.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
   const selectSpecialite = (spec) => {
     setFiltreSpecialite(spec);
     setIsDropdownOpen(false);
+    setCurrentPage(1);
   };
 
   const handleAddClick = () => {
@@ -84,6 +103,7 @@ const Formateurs = () => {
       prenom: '',
       email: '',
       specialite: '',
+      telephone: '',
       image: getProfileImage(formateurs.length + 1)
     });
     setShowPopup(true);
@@ -97,6 +117,7 @@ const Formateurs = () => {
       prenom: formateur.prenom,
       email: formateur.email,
       specialite: formateur.specialite,
+      telephone: formateur.telephone,
       image: formateur.image
     });
     setShowEditPopup(true);
@@ -111,6 +132,7 @@ const Formateurs = () => {
       prenom: '',
       email: '',
       specialite: '',
+      telephone: '',
       image: ''
     });
   };
@@ -120,34 +142,44 @@ const Formateurs = () => {
     setNewFormateur(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSuccessMsg('');
+    setErrorMsg('');
     if (showPopup) {
-      // Ajout d'un nouveau formateur
-      const newId = formateurs.length > 0 ? Math.max(...formateurs.map(f => f.id)) + 1 : 1;
-      setFormateurs([...formateurs, {
-        id: newId,
-        ...newFormateur
-      }]);
+      try {
+        const res = await fetch('http://localhost:8000/api/admin/formateurs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newFormateur)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setFormateurs([...formateurs, data.user]);
+          setSuccessMsg('Formateur créé et email envoyé !');
+        } else {
+          const data = await res.json();
+          setErrorMsg(data.message || 'Erreur lors de la création du formateur');
+        }
+      } catch (err) {
+        setErrorMsg('Erreur réseau ou serveur');
+      }
     } else if (showEditPopup) {
-      // Modification d'un formateur existant
-      setFormateurs(formateurs.map(f => 
+      setFormateurs(formateurs.map(f =>
         f.id === currentFormateur.id ? { ...f, ...newFormateur } : f
       ));
     }
-    
-    setNewFormateur({ 
-      nom: '', 
-      prenom: '', 
-      email: '', 
-      specialite: '',
-      image: ''
-    });
     closePopup();
   };
 
   const handleDelete = (id) => {
     setFormateurs(formateurs.filter(f => f.id !== id));
+    if (currentItems.length === 1 && currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
   };
 
   return (
@@ -156,18 +188,22 @@ const Formateurs = () => {
       
       <main className="content-with-sidebar">
         <div className="formateurs-page">
+          {/* Nouvelle structure pour le header */}
           <div className="formateurs-header">
-            <h1 className="page-title">Liste des Formateurs</h1>
-            <div className="header-actions">
-              <div className="search-bar-container">
-                <FiSearch className="search-icon" />
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="search-input"
-                />
+            <h1 className="page-title">Gestion des Formateurs</h1>
+            <div className="header-controls">
+              <div className="search-bar-wrapper">
+                <div className="search-bar-container">
+                  <FiSearch className="search-icon" />
+                  <input
+                    type="text"
+                    placeholder="Rechercher..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="search-input"
+                  />
+                  
+                </div>
               </div>
               
               <div className="custom-filtre-container">
@@ -195,7 +231,12 @@ const Formateurs = () => {
               </div>
               
               <button className="add-button" onClick={handleAddClick}>
-                <FiPlus className="icon" /> Nouveau Formateur
+                <motion.span
+                              animate={{ rotate: 360 }}
+                              transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
+                            >
+                              <FiPlus />
+                            </motion.span> Nouveau Formateur
               </button>
             </div>
           </div>
@@ -208,13 +249,14 @@ const Formateurs = () => {
                   <th>Nom</th>
                   <th>Prénom</th>
                   <th>Email</th>
+                  <th>Téléphone</th>
                   <th>Spécialité</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {formateursFiltres.length > 0 ? (
-                  formateursFiltres.map((formateur) => (
+                {currentItems.length > 0 ? (
+                  currentItems.map((formateur) => (
                     <tr key={formateur.id}>
                       <td>{formateur.id}</td>
                       <td>
@@ -232,6 +274,7 @@ const Formateurs = () => {
                       </td>
                       <td>{formateur.prenom}</td>
                       <td>{formateur.email}</td>
+                      <td>{formateur.telephone}</td>
                       <td>
                         <span className="specialite-badge">{formateur.specialite}</span>
                       </td>
@@ -255,11 +298,42 @@ const Formateurs = () => {
                   ))
                 ) : (
                   <tr className="no-results">
-                    <td colSpan="6">Aucun formateur trouvé</td>
+                    <td colSpan="7">Aucun formateur trouvé</td>
                   </tr>
                 )}
               </tbody>
             </table>
+
+            {/* Pagination */}
+            {formateursFiltres.length > itemsPerPage && (
+              <div className="pagination-container">
+                <button 
+                  onClick={() => paginate(currentPage - 1)} 
+                  disabled={currentPage === 1}
+                  className="pagination-button pagination-nav-button"
+                >
+                  <FiChevronLeft /> Précédent
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
+                  <button
+                    key={number}
+                    onClick={() => paginate(number)}
+                    className={`pagination-button ${currentPage === number ? 'active' : ''}`}
+                  >
+                    {number}
+                  </button>
+                ))}
+
+                <button 
+                  onClick={() => paginate(currentPage + 1)} 
+                  disabled={currentPage === totalPages}
+                  className="pagination-button pagination-nav-button"
+                >
+                  Suivant <FiChevronRight />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Popup d'ajout */}
@@ -268,14 +342,14 @@ const Formateurs = () => {
               <div className="modal-content">
                 <div className="modal-header">
                   <h2>Ajouter un Formateur</h2>
-                  <button className="close-button" onClick={closePopup}>
-                    <FiX />
+                  <button className="square-close-button" onClick={closePopup}>
+                    <FiX size={18} />
                   </button>
                 </div>
                 
                 <form onSubmit={handleSubmit}>
                   <div className="input-group">
-                    <FiUser className="input-icon" />
+                    <FiUser className="input-icon2" />
                     <input
                       type="text"
                       name="nom"
@@ -287,7 +361,7 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon" />
+                    <FiUser className="input-icon2" />
                     <input
                       type="text"
                       name="prenom"
@@ -299,7 +373,7 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiMail className="input-icon" />
+                    <FiMail className="input-icon2" />
                     <input
                       type="email"
                       name="email"
@@ -311,12 +385,24 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiAward className="input-icon" />
+                    <FiAward className="input-icon2" />
                     <input
                       type="text"
                       name="specialite"
                       placeholder="Spécialité"
                       value={newFormateur.specialite}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="input-group">
+                    <FiUser className="input-icon2" />
+                    <input
+                      type="text"
+                      name="telephone"
+                      placeholder="Téléphone"
+                      value={newFormateur.telephone}
                       onChange={handleInputChange}
                       required
                     />
@@ -341,14 +427,14 @@ const Formateurs = () => {
               <div className="modal-content">
                 <div className="modal-header">
                   <h2>Modifier le Formateur</h2>
-                  <button className="close-button" onClick={closePopup}>
-                    <FiX />
+                  <button className="square-close-button" onClick={closePopup}>
+                    <FiX size={18} />
                   </button>
                 </div>
                 
                 <form onSubmit={handleSubmit}>
                   <div className="input-group">
-                    <FiUser className="input-icon" />
+                    <FiUser className="input-icon2" />
                     <input
                       type="text"
                       name="nom"
@@ -360,7 +446,7 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon" />
+                    <FiUser className="input-icon2" />
                     <input
                       type="text"
                       name="prenom"
@@ -372,7 +458,7 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiMail className="input-icon" />
+                    <FiMail className="input-icon2" />
                     <input
                       type="email"
                       name="email"
@@ -384,12 +470,24 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiAward className="input-icon" />
+                    <FiAward className="input-icon2" />
                     <input
                       type="text"
                       name="specialite"
                       placeholder="Spécialité"
                       value={newFormateur.specialite}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+
+                  <div className="input-group">
+                    <FiUser className="input-icon2" />
+                    <input
+                      type="text"
+                      name="telephone"
+                      placeholder="Téléphone"
+                      value={newFormateur.telephone}
                       onChange={handleInputChange}
                       required
                     />
@@ -407,6 +505,8 @@ const Formateurs = () => {
               </div>
             </div>
           )}
+          {successMsg && <div className="success-message">{successMsg}</div>}
+          {errorMsg && <div className="error-message">{errorMsg}</div>}
         </div>
       </main>
     </div>

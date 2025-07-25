@@ -16,7 +16,7 @@ const Footer = () => {
 
         <div className="footer-contact">
           <h2 className="contact-title">
-            Contactez <span className="highlight">FormaCab</span>
+            Contactez <span className="highlight">EvoLearn</span>
           </h2>
           <p className="contact-description">
             Notre équipe pédagogique est à votre disposition pour répondre à toutes vos questions
@@ -28,7 +28,7 @@ const Footer = () => {
               <svg width="24" height="24" viewBox="0 0 24 24" fill="#F1C40F">
                 <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
               </svg>
-              <span>contact@formacab.com</span>
+              <span>contact@EvoLearn.com</span>
             </div>
             
             <div className="contact-item">
@@ -60,7 +60,7 @@ const Footer = () => {
       </div>
 
       <div className="footer-copyright">
-        <p>© {new Date().getFullYear()} FormaCab. Tous droits réservés.</p>
+        <p>© {new Date().getFullYear()} EvoLearn. Tous droits réservés.</p>
       </div>
     </footer>
   );

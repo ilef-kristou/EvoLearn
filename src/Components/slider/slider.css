@@ -76,7 +76,7 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background-color: var(--light-blue);
+    background-color: #2C3E50;
     color: var(--white);
     border: none;
     padding: 1rem 2rem;

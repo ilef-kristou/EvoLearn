@@ -4,9 +4,9 @@ import { useInView } from "react-intersection-observer";
 import "../../fonts.css";
 import "./Statistics.css";
 import DepartmentIcon from "../../assets/images/department.png"; 
-import GraduateIcon from "../../assets/images/graduate.png";
+import GraduateIcon from "../../assets/images/graduated.png";
 import LearnIcon from "../../assets/images/learn.png";
-import TeacherIcon from "../../assets/images/teacher.png";
+import TeacherIcon from "../../assets/images/teacherrr.png";
 
 const Statistics = () => {
   const { ref, inView } = useInView({ triggerOnce: true });
@@ -18,7 +18,7 @@ const Statistics = () => {
 
   return (
     <div className="statistics" ref={ref}>
-      <h2 className="statisticsTitle">FormaCab en chiffres</h2>
+      <h2 className="statisticsTitle">EvoLearn en chiffres</h2>
       <div className="stats-container">
         <div className="stat-item">
           <div className="stat-icon-container">
@@ -26,12 +26,12 @@ const Statistics = () => {
           </div>
           <h3>
             {hasStarted ? (
-              <CountUp start={0} end={21} duration={4} />
+              <CountUp start={0} end={6} duration={4} />
             ) : (
               "0"
             )}
           </h3>
-          <p>Départements couverts</p>
+          <p>Départements</p>
         </div>
         
         <div className="stat-item">
@@ -40,7 +40,7 @@ const Statistics = () => {
           </div>
           <h3>
             {hasStarted ? (
-              <CountUp start={0} end={380} duration={4} />
+              <CountUp start={0} end={780} duration={4} />
             ) : (
               "0"
             )}
@@ -54,12 +54,12 @@ const Statistics = () => {
           </div>
           <h3>
             {hasStarted ? (
-              <CountUp start={0} end={3000} duration={4} />
+              <CountUp start={0} end={65} duration={4} />
             ) : (
               "0"
             )}
           </h3>
-          <p>Heures de formation</p>
+          <p>Formations</p>
         </div>
         
         <div className="stat-item">
@@ -67,7 +67,7 @@ const Statistics = () => {
             <img src={TeacherIcon} alt="Formateurs" className="stat-icon" />
           </div>
           <h3>
-            {hasStarted ? <CountUp start={0} end={34} duration={4} /> : "0"}
+            {hasStarted ? <CountUp start={0} end={54} duration={4} /> : "0"}
           </h3>
           <p>Formateurs experts</p>
         </div>

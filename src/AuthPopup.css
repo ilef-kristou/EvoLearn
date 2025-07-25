@@ -119,13 +119,20 @@
     font-family: 'Gotham', sans-serif;
     font-size: 1rem;
     transition: all 0.3s ease;
-    background-color: var(--light-gray);
+    background-color: white;
   }
   
   .form-group input:focus {
     outline: none;
     border-color: var(--light-blue);
     box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+  }
+  
+
+  input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0px 1000px white inset !important; /* remet le fond blanc */
+    -webkit-text-fill-color: #000 !important; /* remet le texte en noir */
+    transition: background-color 5000s ease-in-out 0s !important; /* hack pour bloquer le fond auto */
   }
   
   .input-icon {
@@ -160,7 +167,6 @@
   .form-group select {
     appearance: none;
     -webkit-appearance: none;
-    background-color: var(--light-gray);
     width: 100%;
     padding: 14px 16px 14px 45px;
     border: 1px solid var(--light-gray);
@@ -188,7 +194,7 @@
     }
   }
   .submit-btn {
-    background-color: var(--light-blue);
+    background-color: #2C3E50;
     color: var(--white);
     border: none;
     padding: 14px;
@@ -242,7 +248,6 @@
   
   .social-icons {
     display: flex;
-    justify-content: center;
     gap: 15px;
   }
   
@@ -271,6 +276,22 @@
     transform: translateY(-3px);
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
   }
+
+  /* Style pour le sous-titre de l'onglet */
+.tab-subtitle {
+  font-size: 0.7rem;
+  font-weight: normal;
+  margin-top: 2px;
+  color: #666;
+}
+
+/* Style pour le texte d'information dans le formulaire */
+.form-info-text {
+  
+  color: #555;
+  font-size: 0.95rem;
+  text-align: center;
+}
   
   /* Responsive */
   @media (max-width: 480px) {

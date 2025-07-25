@@ -1,0 +1,714 @@
+/*
+  Ce fichier de style est utilisé à la fois pour TrainingManagementPage et RessourcesManagementPage
+  car il définit le style principal des pages de gestion (tableaux, modals, boutons, etc.)
+*/
+:root {
+  --sidebar-width: 250px;
+  --sidebar-collapsed-width: 80px;
+  --primary-color: #6366f1;
+  --primary-dark: #4f46e5;
+  --primary-light: #a5b4fc;
+  --secondary-color: #10b981;
+  --danger-color: #ef4444;
+  --warning-color: #f59e0b;
+  --success-color: #10b981;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --border-radius: 12px;
+  --border-radius-sm: 8px;
+  --border-radius-lg: 16px;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Layout */
+.training-management-container {
+  display: flex;
+  min-height: 100vh;
+  margin-left: var(--sidebar-width);
+  transition: margin-left 0.3s ease;
+}
+
+.training-management-container.sidebar-collapsed {
+  margin-left: var(--sidebar-collapsed-width);
+}
+
+.main-content {
+  flex: 1;
+  padding: 2rem;
+  background-color: white;
+}
+
+/* Header */
+.page-header {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  
+}
+
+.elegant-title {
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--gray-800);
+  margin-bottom: 0.5rem;
+  background: linear-gradient(to right, #3498db, #3498db);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.subtitle {
+  color: var(--gray-500);
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+/* Action Bar */
+.action-bar {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.search-container {
+  flex: 1;
+  min-width: 250px;
+  position: relative;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--gold);
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.8rem 1rem 0.8rem 2.5rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.search-input:focus {
+  outline: none;
+ 
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.filter-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.filter-icon {
+  position: absolute;
+  left: 1rem;
+  color: var(--gold);
+}
+
+.filter-select {
+  width:300px;
+  padding: 0.8rem 1rem 0.8rem 2.5rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius);
+  font-size: 1rem;
+  background-color: white;
+  cursor: pointer;
+  transition: var(--transition);
+  appearance: none;
+  box-shadow: var(--shadow-sm);
+}
+
+.filter-select:hover {
+  border-color: var(--primary-color);
+}
+
+.filter-select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.add-button {
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--border-radius);
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: var(--transition);
+  box-shadow: var(--shadow-md);
+}
+
+.add-button:hover {
+  background-color: var(--primary-dark);
+}
+
+/* Table */
+.table-container {
+  background: white;
+  border-radius: var(--border-radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+
+.trainings-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.trainings-table th {
+  background-color: var(--gray-800);
+  color: white;
+  padding: 1rem;
+  text-align: left;
+  font-weight: 500;
+}
+
+.trainings-table td {
+  padding: 1rem;
+  border-bottom: 1px solid var(--gray-100);
+  color: var(--gray-700);
+}
+
+.trainings-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Table cells */
+.image-cell {
+  width: 100px;
+}
+
+.training-image {
+  width: 80px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: var(--border-radius-sm);
+  transition: var(--transition);
+}
+
+.image-placeholder {
+  width: 80px;
+  height: 60px;
+  background-color: var(--gray-100);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--gray-400);
+}
+
+.description-cell {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border-radius: 50px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: var(--transition);
+}
+
+.status-badge.Planifié {
+  background-color: #dbeafe;
+  color: #1e40af;
+}
+
+.status-badge.En-Préparation {
+  background-color: #fef3c7;
+  color: #92400e;
+}
+
+.status-badge.En-Cours {
+  background-color: #d1fae5;
+  color: #065f46;
+}
+
+.status-badge.Terminé {
+  background-color: #f3f4f6;
+  color: #374151;
+}
+
+/* Actions */
+.actions-cell {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.edit-btn, .delete-btn, .planning-btn {
+  background: none;
+  border: none;
+  padding: 0.5rem;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-btn {
+  color: var(--primary-color);
+}
+
+.delete-btn {
+  color: var(--danger-color);
+}
+
+.planning-btn {
+  color: var(--warning-color);
+}
+
+/* Spots progress */
+.spots-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.spots-progress {
+  height: 8px;
+  background-color: var(--gray-100);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar {
+  height: 100%;
+  background-color: var(--success-color);
+}
+
+.spots-info {
+  font-size: 0.9rem;
+  color: var(--gray-500);
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 2rem;
+}
+
+.pagination button {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--gray-200);
+  background: white;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.pagination button:hover:not(:disabled) {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+.pagination button.active {
+  background-color: var(--primary-color);
+  color: white;
+  border-color: var(--primary-color);
+}
+
+.pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+}
+
+.modal-container {
+  background: white;
+  border-radius: var(--border-radius-lg);
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-xl);
+
+  padding-top:0
+}
+
+.modal-header {
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  background: white;
+  z-index: 1;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  color: var(--gray-800);
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--gray-500);
+  transition: var(--transition);
+}
+
+.close-btn:hover {
+  color: var(--danger-color);
+}
+
+.modal-content {
+
+}
+
+/* Form */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  color: var(--gray-700);
+}
+
+.elegant-input, .elegant-textarea, .elegant-select {
+  width: 100%;
+  padding: 0.8rem 1rem;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--border-radius-sm);
+  font-size: 1rem;
+  transition: var(--transition);
+  box-shadow: var(--shadow-sm);
+}
+
+.elegant-input:focus, 
+.elegant-textarea:focus, 
+.elegant-select:focus {
+  outline: none;
+  border-color: #e6b801;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.elegant-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+/* Image upload */
+.image-upload-container {
+  margin-top: 0.5rem;
+}
+
+.image-upload-label {
+  display: block;
+  cursor: pointer;
+}
+
+.image-upload-input {
+  display: none;
+}
+
+.upload-placeholder {
+  border: 2px dashed var(--gray-200);
+  border-radius: var(--border-radius-sm);
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--gray-400);
+  transition: var(--transition);
+}
+
+.image-preview {
+  position: relative;
+  width: 100%;
+  height: 200px;
+  border-radius: var(--border-radius-sm);
+  overflow: hidden;
+}
+
+.preview-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.remove-image-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: rgba(239, 68, 68, 0.9);
+  color: white;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.remove-image-btn:hover {
+  background: var(--danger-color);
+}
+
+/* Form actions */
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--gray-200);
+}
+
+.cancel-btn {
+  background: var(--gray-100);
+  color: var(--gray-700);
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.cancel-btn:hover {
+  background: var(--gray-200);
+}
+
+.submit-btn {
+  background: #e6b801;
+  color: white;
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: var(--border-radius-sm);
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.submit-btn:hover {
+  background: var(--primary-dark);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .training-management-container {
+    margin-left: 0;
+    flex-direction: column;
+  }
+
+  .training-management-container.sidebar-collapsed {
+    margin-left: 0;
+  }
+
+  .main-content {
+    margin-top: var(--sidebar-collapsed-width);
+    padding: 1rem;
+  }
+
+  .action-bar {
+    flex-direction: column;
+  }
+
+  .search-container,
+  .filter-container,
+  .add-button {
+    width: 100%;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .modal-container {
+    width: 95%;
+    margin: 0.5rem;
+  }
+}
+
+
+/* Ajoutez ces styles à votre fichier CSS existant */
+
+/* Animation de base pour les éléments */
+.motion-element {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Styles pour les images avec animation */
+.image-wrapper {
+  overflow: hidden;
+  border-radius: var(--border-radius-sm);
+  transition: transform 0.3s ease;
+}
+
+.training-image {
+  transition: transform 0.5s ease, opacity 0.5s ease;
+}
+
+/* Amélioration des boutons avec animations */
+button {
+  transition: all 0.3s ease;
+}
+
+/* Animation de la barre de progression */
+.progress-bar {
+  transition: width 0.8s cubic-bezier(0.65, 0, 0.35, 1);
+}
+
+/* Styles pour le modal avec animations */
+.modal-container {
+  transform-origin: center;
+}
+
+/* Animation des lignes du tableau */
+.trainings-table tr {
+  transition: background-color 0.3s ease;
+}
+
+/* Animation des badges de statut */
+.status-badge {
+  transition: all 0.3s ease, transform 0.2s ease;
+  display: inline-block;
+}
+
+/* Animation des éléments de pagination */
+.pagination button {
+  transition: all 0.3s ease, transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Animation du placeholder d'upload */
+.upload-placeholder {
+  transition: all 0.3s ease, border-color 0.2s ease;
+}
+
+/* Animation des boutons d'action */
+.actions-cell button {
+  transition: all 0.2s ease;
+}
+
+/* Animation des champs de formulaire */
+.elegant-input, .elegant-textarea, .elegant-select {
+  transition: all 0.3s ease, box-shadow 0.2s ease;
+}
+
+/* Responsive adjustments for animations */
+@media (max-width: 768px) {
+  .action-bar > * {
+    transition: none !important;
+    transform: none !important;
+  }
+  
+  .trainings-table tr {
+    transition: none !important;
+  }
+}
+
+/* Animation Base */
+[data-framer-motion] {
+  will-change: transform, opacity;
+}
+
+/* Table Row Animations */
+.trainings-table tr {
+  transform-origin: center;
+}
+
+/* Image Animation */
+.training-image {
+  transform-origin: center;
+}
+
+/* Progress Bar Animation */
+.progress-bar {
+  transform-origin: left;
+}
+
+/* Modal Animation */
+.modal-container {
+  transform-origin: center bottom;
+}
+
+/* Button States */
+button {
+  transform-origin: center;
+}
+
+/* Remove conflicting transitions */
+.trainings-table,
+.trainings-table th,
+.trainings-table td,
+.trainings-table tr {
+  transition: none !important;
+}
+
+/* Add this to your existing CSS */
+.motion-div {
+  display: contents;
+}

@@ -1,17 +1,25 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import "./slider.css";
 import Slide1 from "../../assets/images/5.jpg";
 import Slide2 from "../../assets/images/1.jpg";
 import Slide3 from "../../assets/images/4.jpg";
-
 import "../../fonts.css";
 import { useNavigate } from "react-router-dom";
+import AuthPopup from '../../AuthPopup';
 
 const Slider = () => {
   const navigate = useNavigate(); 
+  // Simule l'utilisateur connecté (remplace par ton vrai contexte)
+  const user = null; // null = pas connecté, sinon objet user
+  const [showAuthPopup, setShowAuthPopup] = useState(false);
+
   const handleClick = () => {
-    navigate('/formations');
-  }
+    if (!user) {
+      navigate('/inscription/formation');
+    } else {
+      navigate('/inscription/formation');
+    }
+  };
 
   useEffect(() => {
     let counter = 1;
@@ -32,7 +40,6 @@ const Slider = () => {
         <input type="radio" name="radio-btn" id="radio2" />
         <input type="radio" name="radio-btn" id="radio3" />
  
-
         <div className="slide first">
           <img src={Slide1} alt="Formation en entreprise" />
         </div>
@@ -42,8 +49,6 @@ const Slider = () => {
         <div className="slide">
           <img src={Slide3} alt="Équipe pédagogique" />
         </div>
-        
-
         <div className="navigation-auto">
           <div className="auto-btn1"></div>
           <div className="auto-btn2"></div>
@@ -62,13 +67,15 @@ const Slider = () => {
             <path d="M5 12H19M19 12L12 5M19 12L12 19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
+        {showAuthPopup && (
+          <AuthPopup onClose={() => setShowAuthPopup(false)} />
+        )}
       </div>
 
       <div className="navigation-manual">
         <label htmlFor="radio1" className="manual-btn"></label>
         <label htmlFor="radio2" className="manual-btn"></label>
         <label htmlFor="radio3" className="manual-btn"></label>
-  
       </div>
     </div>
   );

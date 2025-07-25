@@ -1,23 +1,48 @@
 import React from "react";
-import { Routes, Route, useNavigate } from "react-router-dom";
+import { Routes, Route, useNavigate, useLocation } from "react-router-dom";
 import "./App.css";
 import Header from "./Components/Header";
 import Footer from "./Components/Footer";
 import "./fonts.css";
 import Slider from "./Components/slider/slider";
-import Statistics from "./Components/colibrisEnChiffres/Statistics";
+import Statistics from "./Components/EvoLearnEnChiffres/Statistics";
 import planning from "./assets/images/11.png";
 import cours from "./assets/images/12.png";
 import equipe from "./assets/images/log.jpg";
-import formation1 from "./assets/images/11.png";
-import formation2 from "./assets/images/12.png";
-import formation3 from "./assets/images/13.png";
+import formation1 from "./assets/images/123.webp";
+import formation2 from "./assets/images/1234.webp";
+import formation3 from "./assets/images/1235.webp";
 import AdminSidebar from "./admin/AdminSidebar";
-import Formateurs from "./admin/Formateurs"
+import Formateurs from "./admin/Formateurs";
 import ChargeFormations from "./admin/ChargeFormations";
+import Participants from "./admin/Participants";
+import ChargeSidebar from "./chargeFormation/ChargeSidebar";
+import TrainingManagementPage from "./chargeFormation/TrainingManagementPage";
+import PlanningPage from "./chargeFormation/PlanningPage";
+import PlanningFormations from "./chargeFormation/PlanningFormations";
+import InscriptionPage from "./chargeFormation/InscriptionPage";
+import DemandesInscriptionPage from "./chargeFormation/DemandesInscriptionPage";
+import RessourcesManagementPage from "./chargeFormation/RessourcesManagementPage";
+import FormationsList from "./FormationsList.jsx";
+import FormationDetails from "./FormationDetails.jsx";
+
+import ParticipantSidebar from "./participant/ParticipantSidebar.js";
+import MesFormations from './participant/MesFormations';
+import FormateurSidebar from "./formateur/FormateurSidebar.js";
+import FormateurDashboard from "./formateur/FormateurDashboard.jsx";
+import FormateurMesFormations from "./formateur/MesFormations.jsx";
+import FormateurPlanning from "./formateur/Planning.jsx";
+import FormateurDemandes from "./formateur/Demandes.jsx";
+import FormateurMonProfil from "./formateur/MonProfil.jsx";
+import ParticipantMonProfil from "./participant/MonProfil.jsx";
 
 function App() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
+  const isChargeRoute = location.pathname.startsWith('/charge');
+  const isFormateurRoute = location.pathname.startsWith('/formateur');
+
   const handleClick = () => navigate('/formations');
 
   const featuredFormations = [
@@ -49,17 +74,16 @@ function App() {
 
   return (
     <div className="App">
-      <Header />
+      {!isAdminRoute && !isChargeRoute && !isFormateurRoute && (
+        <>
+          <Header />
       <Routes>
-      <Route path="/admin/formateurs" element={<Formateurs />} />
-      <Route path="/admin/ChargeFormations" element={<ChargeFormations />} />
-      <Route path="/admin" element={<AdminSidebar />}>  </Route>
         <Route path="/" element={
           <>
-            <div className="sectionOne">
+               <div className="sectionOne">
               <Slider />
               <h2 className="title">
-                Bienvenue chez <span className="highlight">FormaCab</span>, votre centre de formation professionnelle.
+                Bienvenue chez <span className="highlight">EvoLearn</span>, votre centre de formation professionnelle.
               </h2>
               <button className="cta-button" onClick={handleClick}>
                 VOIR NOS FORMATIONS
@@ -74,7 +98,7 @@ function App() {
                 <div className="about-text">
                   <h2>Qui sommes-nous ?</h2>
                   <p>
-                    <strong>FormaCab</strong> est un centre de formation professionnelle créé en 2010, spécialisé dans les métiers du numérique, de la gestion et des langues.
+                    <strong>EvoLearn</strong> est un centre de formation professionnelle créé en 2010, spécialisé dans les métiers du numérique, de la gestion et des langues.
                   </p>
                   <ul className="about-features">
                     <li>
@@ -159,12 +183,53 @@ function App() {
                 </svg>
               </button>
             </section>
+       
+                <Footer />
           </>
         } />
-        
-      </Routes>
+            <Route path="/formations" element={<FormationsList />} />
+            <Route path="/formation/:id" element={<FormationDetails />} />
+            <Route path="/inscription/formation" element={<InscriptionPage />} />
+            <Route path="/participant/espace" element={<ParticipantSidebar />} />
+            <Route path="/participant/mes-formations" element={<MesFormations />} />
+            <Route path="/participant/mon-profil" element={<ParticipantMonProfil />} />
+          </Routes>
+        </>
+      )}
 
-      <Footer />
+      {isAdminRoute && (
+        <Routes>
+          <Route path="/admin/formateurs" element={<Formateurs />} />
+          <Route path="/admin/ChargeFormations" element={<ChargeFormations />} />
+          <Route path="/admin/participants" element={<Participants />} />
+          <Route path="/admin" element={<AdminSidebar />} />
+        </Routes>
+      )}
+
+      {isChargeRoute && (
+        <Routes>
+          <Route path="/charge" element={<ChargeSidebar />} />
+          <Route path="/charge/dashboard" element={<TrainingManagementPage />} />
+          <Route path="/charge/gestionFormations" element={<TrainingManagementPage />} />
+          <Route path="/charge/demande" element={<DemandesInscriptionPage />} />
+          <Route path="/charge/formations" element={<PlanningFormations />} />
+          <Route path="/charge/planning" element={<PlanningPage />} />
+          <Route path="/charge/ressources" element={<RessourcesManagementPage />} />
+      </Routes>
+      )}
+
+      {isFormateurRoute && (
+        <Routes>
+          <Route path="/formateur/dashboard" element={<FormateurDashboard />} />
+          <Route path="/formateur/mes-formations" element={<FormateurMesFormations />} />
+          <Route path="/formateur/planning" element={<FormateurPlanning />} />
+          <Route path="/formateur/demandes" element={<FormateurDemandes />} />
+          <Route path="/formateur/mon-profil" element={<FormateurMonProfil />} />
+          <Route path="/formateur/ressources" element={<FormateurDashboard />} />
+          <Route path="/formateur/certifications" element={<FormateurDashboard />} />
+          <Route path="/formateur/parametres" element={<FormateurDashboard />} />
+        </Routes>
+      )}
     </div>
   );
 }

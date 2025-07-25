@@ -30,8 +30,8 @@ body {
   border-bottom: 1px solid rgba(44, 62, 80, 0.1);
 }
 .sectionOne{
-    background-color: #E6F0F8;
-    padding-top: 20px;
+    background-color: #cee1f1;
+    padding-top: 0px;
     width: 100%;
     border-bottom-left-radius: 30%;
     border-bottom-right-radius: 30%;
@@ -292,7 +292,7 @@ body {
 }
 
 .view-all:hover {
-  background-color: var(--light-blue);
+  background-color: #2C3E50;
   color: var(--white);
 }
 

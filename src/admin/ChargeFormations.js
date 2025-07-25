@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
 import AdminSidebar from './AdminSidebar';
 import './ChargeFormations.css';
 
-// Fonction pour générer des images de profil aléatoires
 const getProfileImage = (id) => {
   const gender = id % 2 === 0 ? 'women' : 'men';
   return `https://randomuser.me/api/portraits/${gender}/${id % 100}.jpg`;
@@ -17,6 +16,7 @@ const ChargeFormations = () => {
       prenom: 'Dupont', 
       email: 'jean@example.com', 
       departement: 'Informatique',
+      telephone: '0601020304',
       image: getProfileImage(1)
     },
     { 
@@ -25,6 +25,7 @@ const ChargeFormations = () => {
       prenom: 'Martin', 
       email: 'marie@example.com', 
       departement: 'Ressources Humaines',
+      telephone: '0605060708',
       image: getProfileImage(2)
     },
     { 
@@ -33,6 +34,7 @@ const ChargeFormations = () => {
       prenom: 'Lambert', 
       email: 'pierre@example.com', 
       departement: 'Marketing',
+      telephone: '0611223344',
       image: getProfileImage(3)
     },
     { 
@@ -41,9 +43,14 @@ const ChargeFormations = () => {
       prenom: 'Bernard', 
       email: 'sophie@example.com', 
       departement: 'Finance',
+      telephone: '0677889900',
       image: getProfileImage(4)
     }
   ]);
+  
+  // États pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4); // Nombre d'éléments par page
   
   const [showPopup, setShowPopup] = useState(false);
   const [newChargeFormation, setNewChargeFormation] = useState({
@@ -51,10 +58,13 @@ const ChargeFormations = () => {
     prenom: '',
     email: '',
     departement: '',
+    telephone: '',
     image: ''
   });
   const [editingCharge, setEditingCharge] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
   
   const [filtreDepartement, setFiltreDepartement] = useState('Tous');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -62,6 +72,7 @@ const ChargeFormations = () => {
   
   const departements = ['Tous', ...new Set(chargeFormations.map(f => f.departement))];
 
+  // Filtrer les données
   const chargesFiltres = chargeFormations.filter(charge => {
     const matchesDepartement = filtreDepartement === 'Tous' || charge.departement === filtreDepartement;
     const matchesSearch = searchTerm === '' || 
@@ -72,10 +83,19 @@ const ChargeFormations = () => {
     return matchesDepartement && matchesSearch;
   });
 
+  // Logique de pagination
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+  const currentItems = chargesFiltres.slice(indexOfFirstItem, indexOfLastItem);
+  const totalPages = Math.ceil(chargesFiltres.length / itemsPerPage);
+
+  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
   const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
   const selectDepartement = (dept) => {
     setFiltreDepartement(dept);
     setIsDropdownOpen(false);
+    setCurrentPage(1); // Réinitialiser à la première page quand on change le filtre
   };
 
   const handleAddClick = () => {
@@ -84,6 +104,7 @@ const ChargeFormations = () => {
       prenom: '',
       email: '',
       departement: '',
+      telephone: '',
       image: getProfileImage(chargeFormations.length + 1)
     });
     setIsEditMode(false);
@@ -97,6 +118,7 @@ const ChargeFormations = () => {
       prenom: charge.prenom,
       email: charge.email,
       departement: charge.departement,
+      telephone: charge.telephone,
       image: charge.image
     });
     setIsEditMode(true);
@@ -112,6 +134,7 @@ const ChargeFormations = () => {
       prenom: '', 
       email: '', 
       departement: '',
+      telephone: '',
       image: ''
     });
   };
@@ -121,9 +144,10 @@ const ChargeFormations = () => {
     setNewChargeFormation(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    
+    setSuccessMsg('');
+    setErrorMsg('');
     if (isEditMode && editingCharge) {
       // Mode édition
       const updatedCharges = chargeFormations.map(charge => 
@@ -132,23 +156,43 @@ const ChargeFormations = () => {
       setChargeFormations(updatedCharges);
     } else {
       // Mode ajout
-      const newId = chargeFormations.length > 0 ? Math.max(...chargeFormations.map(f => f.id)) + 1 : 1;
-      setChargeFormations([...chargeFormations, {
-        id: newId,
-        ...newChargeFormation
-      }]);
+      try {
+        const res = await fetch('http://localhost:8000/api/admin/charges', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newChargeFormation)
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setChargeFormations([...chargeFormations, data.user]);
+          setSuccessMsg('Chargé créé et email envoyé !');
+        } else {
+          const data = await res.json();
+          setErrorMsg(data.message || 'Erreur lors de la création du chargé');
+        }
+      } catch (err) {
+        setErrorMsg('Erreur réseau ou serveur');
+      }
     }
-    
     setNewChargeFormation({ 
       nom: '', 
       prenom: '', 
       email: '', 
       departement: '',
+      telephone: '',
       image: ''
     });
     setEditingCharge(null);
     setIsEditMode(false);
     closePopup();
+  };
+
+  const handleDelete = (id) => {
+    setChargeFormations(chargeFormations.filter(f => f.id !== id));
+    // Si on supprime le dernier élément de la page, revenir à la page précédente
+    if (currentItems.length === 1 && currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
   };
 
   return (
@@ -158,8 +202,8 @@ const ChargeFormations = () => {
       <main className="content-with-sidebar">
         <div className="charge-formations-page">
           <div className="charge-formations-header">
-            <div className="header-actions">
-              <h1 className="page-title">Liste des Chargés de Formations</h1>
+            <h1 className="page-title">Liste des Chargés de Formations</h1>
+            <div className="search-and-button-container">
               <div className="search-bar-container">
                 <FiSearch className="search-icon" />
                 <input
@@ -185,13 +229,14 @@ const ChargeFormations = () => {
                   <th>Nom</th>
                   <th>Prénom</th>
                   <th>Email</th>
+                  <th>Téléphone</th>
                   <th>Département</th>
                   <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {chargesFiltres.length > 0 ? (
-                  chargesFiltres.map((charge) => (
+                {currentItems.length > 0 ? (
+                  currentItems.map((charge) => (
                     <tr key={charge.id}>
                       <td>{charge.id}</td>
                       <td>
@@ -209,6 +254,7 @@ const ChargeFormations = () => {
                       </td>
                       <td>{charge.prenom}</td>
                       <td>{charge.email}</td>
+                      <td>{charge.telephone}</td>
                       <td>
                         <span className="departement-badge">{charge.departement}</span>
                       </td>
@@ -220,7 +266,10 @@ const ChargeFormations = () => {
                           >
                             <FiEdit2 />
                           </button>
-                          <button className="delete-button">
+                          <button 
+                            className="delete-button"
+                            onClick={() => handleDelete(charge.id)}
+                          >
                             <FiTrash2 />
                           </button>
                         </div>
@@ -229,11 +278,73 @@ const ChargeFormations = () => {
                   ))
                 ) : (
                   <tr className="no-results">
-                    <td colSpan="6">Aucun chargé de formation trouvé</td>
+                    <td colSpan="7">Aucun chargé de formation trouvé</td>
                   </tr>
                 )}
               </tbody>
             </table>
+
+            {/* Pagination */}
+            {chargesFiltres.length > itemsPerPage && (
+              <div className="pagination-container">
+                <button 
+                  onClick={() => paginate(currentPage - 1)} 
+                  disabled={currentPage === 1}
+                  className="pagination-button pagination-nav-button"
+                >
+                  <FiChevronLeft /> Précédent
+                </button>
+
+                {/* Premier bouton */}
+                <button
+                  onClick={() => paginate(1)}
+                  className={`pagination-button ${currentPage === 1 ? 'active' : ''}`}
+                >
+                  1
+                </button>
+
+                {/* Points de suspension si nécessaire */}
+                {currentPage > 3 && (
+                  <span className="pagination-ellipsis">...</span>
+                )}
+
+                {/* Boutons autour de la page courante */}
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter(num => num > 1 && num < totalPages && Math.abs(num - currentPage) <= 1)
+                  .map(number => (
+                    <button
+                      key={number}
+                      onClick={() => paginate(number)}
+                      className={`pagination-button ${currentPage === number ? 'active' : ''}`}
+                    >
+                      {number}
+                    </button>
+                  ))}
+
+                {/* Points de suspension si nécessaire */}
+                {currentPage < totalPages - 2 && totalPages > 3 && (
+                  <span className="pagination-ellipsis">...</span>
+                )}
+
+                {/* Dernier bouton */}
+                {totalPages > 1 && (
+                  <button
+                    onClick={() => paginate(totalPages)}
+                    className={`pagination-button ${currentPage === totalPages ? 'active' : ''}`}
+                  >
+                    {totalPages}
+                  </button>
+                )}
+
+                <button 
+                  onClick={() => paginate(currentPage + 1)} 
+                  disabled={currentPage === totalPages}
+                  className="pagination-button pagination-nav-button"
+                >
+                  Suivant <FiChevronRight />
+                </button>
+              </div>
+            )}
           </div>
 
           {showPopup && (
@@ -248,7 +359,7 @@ const ChargeFormations = () => {
                 
                 <form onSubmit={handleSubmit}>
                   <div className="input-group">
-                    <FiUser className="input-icon" />
+                    <FiUser className="input-icon1" />
                     <input
                       type="text"
                       name="nom"
@@ -260,7 +371,7 @@ const ChargeFormations = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon" />
+                    <FiUser className="input-icon1" />
                     <input
                       type="text"
                       name="prenom"
@@ -272,7 +383,7 @@ const ChargeFormations = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiMail className="input-icon" />
+                    <FiMail className="input-icon1" />
                     <input
                       type="email"
                       name="email"
@@ -284,7 +395,19 @@ const ChargeFormations = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiAward className="input-icon" />
+                    <FiUser className="input-icon1" />
+                    <input
+                      type="text"
+                      name="telephone"
+                      placeholder="Téléphone"
+                      value={newChargeFormation.telephone}
+                      onChange={handleInputChange}
+                      required
+                    />
+                  </div>
+                  
+                  <div className="input-group">
+                    <FiAward className="input-icon1" />
                     <div className="custom-select">
                       <select
                         name="departement"
@@ -313,6 +436,8 @@ const ChargeFormations = () => {
               </div>
             </div>
           )}
+          {successMsg && <div className="success-message">{successMsg}</div>}
+          {errorMsg && <div className="error-message">{errorMsg}</div>}
         </div>
       </main>
     </div>
