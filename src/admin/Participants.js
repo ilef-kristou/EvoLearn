@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiPhone, FiMapPin, FiBook, FiSearch, FiChevronLeft, FiChevronRight, FiChevronDown } from 'react-icons/fi';
 import AdminSidebar from './AdminSidebar';
 import './Participants.css';
+import pdp from '../assets/images/pdp.webp';
 
 const Participants = () => {
   // Données initiales des participants
@@ -14,7 +15,8 @@ const Participants = () => {
       telephone: '0612345678',
       adresse: '12 Rue de la République, Paris',
       niveauEtude: 'Licence',
-      formation:'React'
+      formation:'React',
+      image: pdp
     },
     { 
       id: 2, 
@@ -24,7 +26,8 @@ const Participants = () => {
       telephone: '0698765432',
       adresse: '24 Avenue des Champs-Élysées, Paris',
       niveauEtude: 'Master',
-      formation:'Angular'
+      formation:'Angular',
+      image: pdp
     },
     { 
       id: 3, 
@@ -34,7 +37,8 @@ const Participants = () => {
       telephone: '0687654321',
       adresse: '5 Rue du Commerce, Lyon',
       niveauEtude: 'Doctorat',
-      formation:'Business Intelligence'
+      formation:'Business Intelligence',
+      image: pdp
     },
     { 
       id: 4, 
@@ -43,7 +47,8 @@ const Participants = () => {
       email: 'marie.petit@example.com', 
       telephone: '0678945612',
       adresse: '8 Boulevard Voltaire, Marseille',
-      niveauEtude: 'Baccalauréat'
+      niveauEtude: 'Baccalauréat',
+      image: pdp
     },
     { 
       id: 5, 
@@ -52,7 +57,8 @@ const Participants = () => {
       email: 'thomas.leroy@example.com', 
       telephone: '0632145698',
       adresse: '15 Rue de la Paix, Lille',
-      niveauEtude: 'Master'
+      niveauEtude: 'Master',
+      image: pdp
     },
     { 
       id: 6, 
@@ -61,7 +67,8 @@ const Participants = () => {
       email: 'julie.moreau@example.com', 
       telephone: '0698745632',
       adresse: '3 Avenue Foch, Bordeaux',
-      niveauEtude: 'Licence'
+      niveauEtude: 'Licence',
+      image: pdp
     }
   ]);
 
@@ -80,7 +87,8 @@ const Participants = () => {
     telephone: '',
     adresse: '',
     niveauEtude: '',
-    formation:''
+    formation:'',
+    image: pdp
   });
 
   // États pour les filtres et recherche
@@ -131,6 +139,7 @@ const Participants = () => {
       adresse: '',
       niveauEtude: '',
       formation:'',
+      image: pdp
     });
     setShowPopup(true);
     setShowEditPopup(false);
@@ -146,6 +155,7 @@ const Participants = () => {
       adresse: participant.adresse,
       niveauEtude: participant.niveauEtude,
       formation:participant.formation,
+      image: participant.image || pdp
     });
     setShowEditPopup(true);
     setShowPopup(false);
@@ -162,6 +172,7 @@ const Participants = () => {
       adresse: '',
       niveauEtude: '',
       formation:'',
+      image: pdp
     });
   };
 
@@ -175,10 +186,14 @@ const Participants = () => {
     if (showPopup) {
       // Ajout d'un nouveau participant
       const newId = participants.length > 0 ? Math.max(...participants.map(p => p.id)) + 1 : 1;
-      setParticipants([...participants, {
-        id: newId,
-        ...newParticipant
-      }]);
+      setParticipants([
+        ...participants,
+        {
+          id: newId,
+          ...newParticipant,
+          image: newParticipant.image || pdp // si jamais image est vide/null, on met pdp
+        }
+      ]);
     } else if (showEditPopup) {
       // Modification d'un participant existant
       setParticipants(participants.map(p => 
@@ -429,6 +444,25 @@ const Participants = () => {
                     />
                   </div>
                   
+                  <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                    <label>Photo de profil</label>
+                    <img src={newParticipant.image} alt="Profil" style={{width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginBottom: 8}} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = ev => {
+                            setNewParticipant(prev => ({ ...prev, image: ev.target.result }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                  </div>
+                  
                   <div className="modal-actions">
                     <button type="button" className="cancel-button" onClick={closePopup}>
                       Annuler
@@ -463,6 +497,25 @@ const Participants = () => {
                       value={newParticipant.nom}
                       onChange={handleInputChange}
                       required
+                    />
+                  </div>
+                  {/* Affichage et modification de l'image de profil */}
+                  <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
+                    <label>Photo de profil</label>
+                    <img src={newParticipant.image} alt="Profil" style={{width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginBottom: 8}} />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={e => {
+                        const file = e.target.files[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = ev => {
+                            setNewParticipant(prev => ({ ...prev, image: ev.target.result }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
                     />
                   </div>
                   

@@ -304,3 +304,145 @@
       font-size: 1rem;
     }
   }
+
+/* Styles pour la popup de succès */
+.success-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(44, 62, 80, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  backdrop-filter: blur(8px);
+  animation: fadeIn 0.4s ease-out;
+}
+
+.success-popup {
+  background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+  border-radius: 20px;
+  width: 100%;
+  max-width: 400px;
+  padding: 40px;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: slideInUp 0.5s ease-out;
+  border: 1px solid rgba(76, 175, 80, 0.1);
+}
+
+.success-icon {
+  margin-bottom: 20px;
+  animation: bounceIn 0.8s ease-out;
+}
+
+.success-icon svg {
+  filter: drop-shadow(0 4px 8px rgba(76, 175, 80, 0.3));
+}
+
+.success-popup h2 {
+  color: #2C3E50;
+  font-family: 'Gotham', sans-serif;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 15px;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.success-popup p {
+  color: #7F8C8D;
+  font-family: 'Gotham', sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  margin-bottom: 30px;
+  animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+.success-btn {
+  background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  color: white;
+  border: none;
+  padding: 15px 30px;
+  border-radius: 50px;
+  font-family: 'Gotham', sans-serif;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+  animation: fadeInUp 0.6s ease-out 0.6s both;
+}
+
+.success-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+  background: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+}
+
+.success-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 10px rgba(76, 175, 80, 0.3);
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes bounceIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
+  70% {
+    transform: scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive pour la popup de succès */
+@media (max-width: 480px) {
+  .success-popup {
+    margin: 20px;
+    padding: 30px 20px;
+  }
+  
+  .success-popup h2 {
+    font-size: 1.5rem;
+  }
+  
+  .success-popup p {
+    font-size: 0.9rem;
+  }
+  
+  .success-btn {
+    padding: 12px 25px;
+    font-size: 0.9rem;
+  }
+}

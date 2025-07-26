@@ -1,14 +1,8 @@
 import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 import AdminSidebar from './AdminSidebar';
 import './Formateurs.css';
 import { motion, AnimatePresence } from 'framer-motion';
-
-// Fonction pour générer des images de profil aléatoires
-const getProfileImage = (id) => {
-  const gender = id % 2 === 0 ? 'women' : 'men';
-  return `https://randomuser.me/api/portraits/${gender}/${id % 100}.jpg`;
-};
 
 const Formateurs = () => {
   const [formateurs, setFormateurs] = useState([
@@ -19,7 +13,7 @@ const Formateurs = () => {
       email: 'jean@example.com', 
       specialite: 'React JS',
       telephone: '0601020304',
-      image: getProfileImage(1)
+      image: 'images/pdp.webp'
     },
     { 
       id: 2, 
@@ -28,7 +22,7 @@ const Formateurs = () => {
       email: 'marie@example.com', 
       specialite: 'Node.js',
       telephone: '0605060708',
-      image: getProfileImage(2)
+      image: 'images/pdp.webp'
     },
     { 
       id: 3, 
@@ -37,7 +31,7 @@ const Formateurs = () => {
       email: 'pierre@example.com', 
       specialite: 'UX Design',
       telephone: '0611223344',
-      image: getProfileImage(3)
+      image: 'images/pdp.webp'
     },
     { 
       id: 4, 
@@ -46,7 +40,7 @@ const Formateurs = () => {
       email: 'sophie@example.com', 
       specialite: 'React JS',
       telephone: '0677889900',
-      image: getProfileImage(4)
+      image: 'images/pdp.webp'
     }
   ]);
   
@@ -59,7 +53,7 @@ const Formateurs = () => {
     email: '',
     specialite: '',
     telephone: '',
-    image: ''
+    image: 'images/pdp.webp'
   });
   
   const [filtreSpecialite, setFiltreSpecialite] = useState('Tous');
@@ -69,6 +63,12 @@ const Formateurs = () => {
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(4);
+  
+  // États pour les popups de succès et d'erreur
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   
   const specialites = ['Tous', ...new Set(formateurs.map(f => f.specialite))];
 
@@ -104,7 +104,7 @@ const Formateurs = () => {
       email: '',
       specialite: '',
       telephone: '',
-      image: getProfileImage(formateurs.length + 1)
+      image: 'images/pdp.webp'
     });
     setShowPopup(true);
     setShowEditPopup(false);
@@ -133,7 +133,7 @@ const Formateurs = () => {
       email: '',
       specialite: '',
       telephone: '',
-      image: ''
+      image: 'images/pdp.webp'
     });
   };
 
@@ -142,13 +142,9 @@ const Formateurs = () => {
     setNewFormateur(prev => ({ ...prev, [name]: value }));
   };
 
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSuccessMsg('');
-    setErrorMsg('');
+    
     if (showPopup) {
       try {
         const res = await fetch('http://localhost:8000/api/admin/formateurs', {
@@ -156,21 +152,33 @@ const Formateurs = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(newFormateur)
         });
+        
         if (res.ok) {
           const data = await res.json();
           setFormateurs([...formateurs, data.user]);
-          setSuccessMsg('Formateur créé et email envoyé !');
+          setSuccessMessage('Formateur créé avec succès ! Un email a été envoyé avec les identifiants.');
+          setShowSuccessPopup(true);
         } else {
           const data = await res.json();
-          setErrorMsg(data.message || 'Erreur lors de la création du formateur');
+          setErrorMessage(data.message || 'Erreur lors de la création du formateur');
+          setShowErrorPopup(true);
         }
       } catch (err) {
-        setErrorMsg('Erreur réseau ou serveur');
+        setErrorMessage('Erreur réseau ou serveur. Vérifiez votre connexion.');
+        setShowErrorPopup(true);
       }
     } else if (showEditPopup) {
-      setFormateurs(formateurs.map(f =>
-        f.id === currentFormateur.id ? { ...f, ...newFormateur } : f
-      ));
+      try {
+        // Simulation de la modification (à adapter selon votre API)
+        setFormateurs(formateurs.map(f =>
+          f.id === currentFormateur.id ? { ...f, ...newFormateur } : f
+        ));
+        setSuccessMessage('Formateur modifié avec succès !');
+        setShowSuccessPopup(true);
+      } catch (err) {
+        setErrorMessage('Erreur lors de la modification du formateur');
+        setShowErrorPopup(true);
+      }
     }
     closePopup();
   };
@@ -180,6 +188,18 @@ const Formateurs = () => {
     if (currentItems.length === 1 && currentPage > 1) {
       setCurrentPage(currentPage - 1);
     }
+    setSuccessMessage('Formateur supprimé avec succès !');
+    setShowSuccessPopup(true);
+  };
+
+  const closeSuccessPopup = () => {
+    setShowSuccessPopup(false);
+    setSuccessMessage('');
+  };
+
+  const closeErrorPopup = () => {
+    setShowErrorPopup(false);
+    setErrorMessage('');
   };
 
   return (
@@ -232,11 +252,11 @@ const Formateurs = () => {
               
               <button className="add-button" onClick={handleAddClick}>
                 <motion.span
-                              animate={{ rotate: 360 }}
-                              transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
-                            >
-                              <FiPlus />
-                            </motion.span> Nouveau Formateur
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
+                >
+                  <FiPlus />
+                </motion.span> Nouveau Formateur
               </button>
             </div>
           </div>
@@ -262,11 +282,17 @@ const Formateurs = () => {
                       <td>
                         <div className="user-info">
                           <img 
-                            src={formateur.image} 
+                            src={formateur.image ? 
+                              (formateur.image.startsWith('http') ? 
+                                formateur.image : 
+                                `http://localhost:8000/storage/${formateur.image}`
+                              ) : 
+                              'http://localhost:8000/storage/images/pdp.webp'
+                            }
                             alt={`${formateur.nom} ${formateur.prenom}`}
                             className="profile-image"
                             onError={(e) => {
-                              e.target.src = 'https://randomuser.me/api/portraits/lego/1.jpg';
+                              e.target.src = 'images/pdp.webp';
                             }}
                           />
                           {formateur.nom}
@@ -505,8 +531,38 @@ const Formateurs = () => {
               </div>
             </div>
           )}
-          {successMsg && <div className="success-message">{successMsg}</div>}
-          {errorMsg && <div className="error-message">{errorMsg}</div>}
+
+          {/* Popup de succès */}
+          {showSuccessPopup && (
+            <div className="success-popup-overlay">
+              <div className="success-popup">
+                <div className="success-icon">
+                  <FiCheckCircle size={60} color="#4CAF50" />
+                </div>
+                <h2>Succès !</h2>
+                <p>{successMessage}</p>
+                <button className="success-btn" onClick={closeSuccessPopup}>
+                  Continuer
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Popup d'erreur */}
+          {showErrorPopup && (
+            <div className="error-popup-overlay">
+              <div className="error-popup">
+                <div className="error-icon">
+                  <FiAlertCircle size={60} color="#F44336" />
+                </div>
+                <h2>Erreur !</h2>
+                <p>{errorMessage}</p>
+                <button className="error-btn" onClick={closeErrorPopup}>
+                  Compris
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

@@ -22,13 +22,14 @@ const MonProfil = () => {
   // CHARGEMENT DES DONNÉES DU PARTICIPANT CONNECTÉ
   useEffect(() => {
     const token = localStorage.getItem('jwt');
-    fetch('http://localhost:8000/api/user', {
+    fetch('http://localhost:8000/api/participant/profile', {
       headers: {
         'Authorization': 'Bearer ' + token
       }
     })
       .then(res => res.json())
       .then(data => {
+        console.log('Données reçues du backend:', data);
         setForm({
           nom: data.nom || '',
           prenom: data.prenom || '',
@@ -89,6 +90,8 @@ const MonProfil = () => {
       const data = await response.json();
       if (response.ok) {
         alert('Profil mis à jour avec succès !');
+        console.log('Image reçue du backend:', data.user.image);
+        // Mettre à jour le formulaire avec les données retournées
         setForm({
           ...form,
           image: data.user.image
@@ -128,7 +131,15 @@ const MonProfil = () => {
                     fontWeight: 700, 
                     boxShadow: '0 2px 8px rgba(44,62,80,0.10)',
                     overflow: 'hidden',
-                    backgroundImage: previewAvatar ? `url(${previewAvatar})` : (form.image ? `url(${form.image})` : 'none'),
+                    backgroundImage: previewAvatar ? 
+                      `url(${previewAvatar})` : 
+                      (form.image ? 
+                        (form.image.startsWith('data:') ? 
+                          `url(${form.image})` : 
+                          `url(http://localhost:8000/storage/${form.image})`
+                        ) : 
+                        'none'
+                      ),
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                   }}

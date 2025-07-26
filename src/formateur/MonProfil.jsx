@@ -14,7 +14,7 @@ const MonProfil = () => {
     telephone: '',
     specialite: '',
     password: '',
-    avatar: ''
+    image: '' // remplace avatar par image
   });
   const [previewAvatar, setPreviewAvatar] = useState(null);
   const fileInputRef = useRef(null);
@@ -22,22 +22,22 @@ const MonProfil = () => {
   // CHARGEMENT DES DONNÉES DU FORMATEUR CONNECTÉ
   useEffect(() => {
     const token = localStorage.getItem('jwt');
-    fetch('http://localhost:8000/api/user', {
+    fetch('http://localhost:8000/api/formateur/profile', {
       headers: {
         'Authorization': 'Bearer ' + token
       }
     })
       .then(res => res.json())
       .then(data => {
-        const user = data.user || data;
+        console.log('Données reçues du backend:', data);
         setForm({
-          nom: user.nom || '',
-          prenom: user.prenom || '',
-          email: user.email || '',
-          telephone: user.telephone || '',
-          specialite: user.specialite || '',
+          nom: data.nom || '',
+          prenom: data.prenom || '',
+          email: data.email || '',
+          telephone: data.telephone || '',
+          specialite: data.specialite || '',
           password: '',
-          avatar: user.image || ''
+          image: data.image || '' // remplace avatar par image
         });
       });
   }, []);
@@ -49,12 +49,10 @@ const MonProfil = () => {
   const handleAvatarChange = (e) => {
     const file = e.target.files[0];
     if (file) {
-      // Mise à jour du state pour l'avatar (vous pourriez vouloir utiliser FormData pour l'envoi au backend)
-      setForm({ ...form, avatar: file });
-      
-      // Création d'une preview pour l'affichage immédiat
+      // Mise à jour du state pour l'image (base64)
       const reader = new FileReader();
       reader.onloadend = () => {
+        setForm({ ...form, image: reader.result });
         setPreviewAvatar(reader.result);
       };
       reader.readAsDataURL(file);
@@ -65,12 +63,47 @@ const MonProfil = () => {
     fileInputRef.current.click();
   };
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
     setEditMode(false);
-    // Ici, vous devrez envoyer les données au backend
-    // Pour l'avatar, vous devrez utiliser FormData si c'est un fichier
-    console.log('Données à envoyer:', form);
+
+    const token = localStorage.getItem('jwt');
+    // Préparer les données à envoyer
+    const dataToSend = {
+      nom: form.nom,
+      prenom: form.prenom,
+      email: form.email,
+      telephone: form.telephone,
+      specialite: form.specialite,
+      image: form.image // base64 ou URL
+    };
+
+    try {
+      const response = await fetch('http://localhost:8000/api/formateur/profile', {
+        method: 'PUT',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dataToSend)
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        alert('Profil mis à jour avec succès !');
+        console.log('Image reçue du backend:', data.user.image);
+        // Mettre à jour le formulaire avec les données retournées
+        setForm({
+          ...form,
+          image: data.user.image
+        });
+        setPreviewAvatar(null);
+      } else {
+        alert(data.error || 'Erreur lors de la mise à jour du profil');
+      }
+    } catch (error) {
+      alert('Erreur réseau');
+    }
   };
 
   return (
@@ -99,12 +132,20 @@ const MonProfil = () => {
                     fontWeight: 700, 
                     boxShadow: '0 2px 8px rgba(44,62,80,0.10)',
                     overflow: 'hidden',
-                    backgroundImage: previewAvatar ? `url(${previewAvatar})` : (form.avatar ? `url(${form.avatar})` : 'none'),
+                    backgroundImage: previewAvatar ? 
+                      `url(${previewAvatar})` : 
+                      (form.image ? 
+                        (form.image.startsWith('data:') ? 
+                          `url(${form.image})` : 
+                          `url(http://localhost:8000/storage/${form.image})`
+                        ) : 
+                        'none'
+                      ),
                     backgroundSize: 'cover',
                     backgroundPosition: 'center'
                   }}
                 >
-                  {!previewAvatar && !form.avatar && <FiUser />}
+                  {!previewAvatar && !form.image && <FiUser />}
                   {editMode && (
                     <div 
                       onClick={triggerFileInput}
@@ -157,6 +198,10 @@ const MonProfil = () => {
                     <label style={{ color: 'var(--dark-blue)', fontWeight: 600, marginBottom: 6, display: 'block' }}>Téléphone</label>
                     <input type="tel" name="telephone" value={form.telephone} onChange={handleChange} disabled={!editMode} style={{ width: '100%', padding: '0.7rem', borderRadius: 10, border: '1px solid var(--light-gray)', fontSize: '1rem', background: editMode ? 'var(--light-gray)' : '#f9fafb', outline: 'none', transition: 'border 0.2s' }} />
                   </div>
+                </div>
+                <div>
+                  <label style={{ color: 'var(--dark-blue)', fontWeight: 600, marginBottom: 6, display: 'block' }}>Spécialité</label>
+                  <input type="text" name="specialite" value={form.specialite} onChange={handleChange} disabled={!editMode} style={{ width: '100%', padding: '0.7rem', borderRadius: 10, border: '1px solid var(--light-gray)', fontSize: '1rem', background: editMode ? 'var(--light-gray)' : '#f9fafb', outline: 'none', transition: 'border 0.2s' }} />
                 </div>
                 
                 <div style={{ display: 'flex', gap: 16, justifyContent: 'flex-end', marginTop: 18 }}>
