@@ -35,14 +35,13 @@
   .charge-formations-container {
     display: flex;
     min-height: 100vh;
-    margin-left: var(--sidebar-width);
+    /* margin-left: var(--sidebar-width); */
     transition: margin-left 0.3s ease;
     background-color: #f8f9fa;
-    padding:4rem
   }
   
   .charge-formations-container.sidebar-collapsed {
-    margin-left: var(--sidebar-collapsed-width);
+    /* margin-left: var(--sidebar-collapsed-width); */
   }
   
   .demandes-container {

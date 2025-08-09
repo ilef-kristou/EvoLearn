@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import './AuthPopup.css';
 
-const AuthPopup = ({ onClose }) => {
+const AuthPopup = ({ onClose, redirectToInscription }) => {
   const [isLogin, setIsLogin] = useState(true);
   const [formData, setFormData] = useState({
     firstName: '',
@@ -45,9 +45,15 @@ const AuthPopup = ({ onClose }) => {
             localStorage.setItem('jwt', data.token);
           }
           setMessage('Connexion réussie !');
-          // Redirection selon le rôle
-          if (data.user && data.user.role === 'formateur') {
+          // Redirection selon le contexte
+          if (redirectToInscription) {
+            window.location.href = '/inscription/formation';
+          } else if (data.user && data.user.role === 'formateur') {
             window.location.href = '/formateur/mon-profil';
+          } else if (data.user && data.user.role === 'charge') {
+            window.location.href = '/charge/demande';
+          } else if (data.user && data.user.role === 'admin') {
+            window.location.href = '/admin/dashboard';
           } else {
             window.location.href = '/participant/mon-profil';
           }

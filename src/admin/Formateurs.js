@@ -1,51 +1,19 @@
-import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { 
+  FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, 
+  FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight, 
+  FiCheckCircle, FiAlertCircle 
+} from 'react-icons/fi';
 import AdminSidebar from './AdminSidebar';
 import './Formateurs.css';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 const Formateurs = () => {
-  const [formateurs, setFormateurs] = useState([
-    { 
-      id: 1, 
-      nom: 'Jean', 
-      prenom: 'Dupont', 
-      email: 'jean@example.com', 
-      specialite: 'React JS',
-      telephone: '0601020304',
-      image: 'images/pdp.webp'
-    },
-    { 
-      id: 2, 
-      nom: 'Marie', 
-      prenom: 'Martin', 
-      email: 'marie@example.com', 
-      specialite: 'Node.js',
-      telephone: '0605060708',
-      image: 'images/pdp.webp'
-    },
-    { 
-      id: 3, 
-      nom: 'Pierre', 
-      prenom: 'Lambert', 
-      email: 'pierre@example.com', 
-      specialite: 'UX Design',
-      telephone: '0611223344',
-      image: 'images/pdp.webp'
-    },
-    { 
-      id: 4, 
-      nom: 'Sophie', 
-      prenom: 'Bernard', 
-      email: 'sophie@example.com', 
-      specialite: 'React JS',
-      telephone: '0677889900',
-      image: 'images/pdp.webp'
-    }
-  ]);
+  const [formateurs, setFormateurs] = useState([]);
+  const [loading, setLoading] = useState(true);
   
+  // États unifiés
   const [showPopup, setShowPopup] = useState(false);
-  const [showEditPopup, setShowEditPopup] = useState(false);
   const [currentFormateur, setCurrentFormateur] = useState(null);
   const [newFormateur, setNewFormateur] = useState({
     nom: '',
@@ -56,47 +24,51 @@ const Formateurs = () => {
     image: 'images/pdp.webp'
   });
   
+  // Filtres et pagination
   const [filtreSpecialite, setFiltreSpecialite] = useState('Tous');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(4);
   
-  // États pour les popups de succès et d'erreur
+  // Messages
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
   const [showErrorPopup, setShowErrorPopup] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-  
-  const specialites = ['Tous', ...new Set(formateurs.map(f => f.specialite))];
 
+  useEffect(() => {
+    const fetchFormateurs = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/formateurs');
+        const data = await response.json();
+        setFormateurs(data);
+      } catch (error) {
+        console.error('Erreur:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFormateurs();
+  }, []);
+
+  // Données filtrées
+  const specialites = ['Tous', ...new Set(formateurs.map(f => f.specialite))];
   const formateursFiltres = formateurs.filter(formateur => {
     const matchesSpecialite = filtreSpecialite === 'Tous' || formateur.specialite === filtreSpecialite;
     const matchesSearch = searchTerm === '' || 
-      formateur.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      formateur.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      formateur.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      formateur.specialite.toLowerCase().includes(searchTerm.toLowerCase());
+      Object.values(formateur).some(
+        val => typeof val === 'string' && val.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     return matchesSpecialite && matchesSearch;
   });
 
-  // Logique de pagination
+  // Pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = formateursFiltres.slice(indexOfFirstItem, indexOfLastItem);
   const totalPages = Math.ceil(formateursFiltres.length / itemsPerPage);
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
-  const selectSpecialite = (spec) => {
-    setFiltreSpecialite(spec);
-    setIsDropdownOpen(false);
-    setCurrentPage(1);
-  };
-
+  // Handlers
   const handleAddClick = () => {
     setNewFormateur({
       nom: '',
@@ -106,35 +78,19 @@ const Formateurs = () => {
       telephone: '',
       image: 'images/pdp.webp'
     });
+    setCurrentFormateur(null);
     setShowPopup(true);
-    setShowEditPopup(false);
   };
 
   const handleEditClick = (formateur) => {
     setCurrentFormateur(formateur);
-    setNewFormateur({
-      nom: formateur.nom,
-      prenom: formateur.prenom,
-      email: formateur.email,
-      specialite: formateur.specialite,
-      telephone: formateur.telephone,
-      image: formateur.image
-    });
-    setShowEditPopup(true);
-    setShowPopup(false);
+    setNewFormateur({ ...formateur });
+    setShowPopup(true);
   };
 
   const closePopup = () => {
     setShowPopup(false);
-    setShowEditPopup(false);
-    setNewFormateur({
-      nom: '',
-      prenom: '',
-      email: '',
-      specialite: '',
-      telephone: '',
-      image: 'images/pdp.webp'
-    });
+    setCurrentFormateur(null);
   };
 
   const handleInputChange = (e) => {
@@ -145,62 +101,71 @@ const Formateurs = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (showPopup) {
-      try {
-        const res = await fetch('http://localhost:8000/api/admin/formateurs', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newFormateur)
-        });
-        
-        if (res.ok) {
-          const data = await res.json();
-          setFormateurs([...formateurs, data.user]);
-          setSuccessMessage('Formateur créé avec succès ! Un email a été envoyé avec les identifiants.');
-          setShowSuccessPopup(true);
-        } else {
-          const data = await res.json();
-          setErrorMessage(data.message || 'Erreur lors de la création du formateur');
-          setShowErrorPopup(true);
-        }
-      } catch (err) {
-        setErrorMessage('Erreur réseau ou serveur. Vérifiez votre connexion.');
-        setShowErrorPopup(true);
-      }
-    } else if (showEditPopup) {
-      try {
-        // Simulation de la modification (à adapter selon votre API)
-        setFormateurs(formateurs.map(f =>
-          f.id === currentFormateur.id ? { ...f, ...newFormateur } : f
-        ));
+    try {
+      const url = currentFormateur
+        ? `http://localhost:8000/api/admin/formateurs/${currentFormateur.id}`
+        : 'http://localhost:8000/api/admin/formateurs';
+      
+      const method = currentFormateur ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newFormateur)
+      });
+
+      if (!response.ok) throw new Error(await response.text());
+
+      const result = await response.json();
+      
+      if (currentFormateur) {
+        setFormateurs(prev => prev.map(f => f.id === currentFormateur.id ? result : f));
         setSuccessMessage('Formateur modifié avec succès !');
-        setShowSuccessPopup(true);
-      } catch (err) {
-        setErrorMessage('Erreur lors de la modification du formateur');
-        setShowErrorPopup(true);
+      } else {
+        setFormateurs(prev => [...prev, result]);
+        setSuccessMessage('Formateur créé avec succès !');
       }
+      
+      closePopup();
+      setShowSuccessPopup(true);
+    } catch (err) {
+      console.error('Erreur:', err);
+      setErrorMessage(err.message || 'Une erreur est survenue');
+      setShowErrorPopup(true);
     }
-    closePopup();
   };
 
-  const handleDelete = (id) => {
-    setFormateurs(formateurs.filter(f => f.id !== id));
-    if (currentItems.length === 1 && currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/admin/formateurs/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Échec de la suppression');
+
+      setFormateurs(prev => prev.filter(f => f.id !== id));
+      setSuccessMessage('Formateur supprimé avec succès !');
+      setShowSuccessPopup(true);
+    } catch (err) {
+      console.error('Erreur:', err);
+      setErrorMessage(err.message || 'Échec de la suppression');
+      setShowErrorPopup(true);
     }
-    setSuccessMessage('Formateur supprimé avec succès !');
-    setShowSuccessPopup(true);
   };
 
-  const closeSuccessPopup = () => {
+  const closeMessagePopup = () => {
     setShowSuccessPopup(false);
-    setSuccessMessage('');
+    setShowErrorPopup(false);
   };
 
-  const closeErrorPopup = () => {
-    setShowErrorPopup(false);
-    setErrorMessage('');
-  };
+  if (loading) {
+    return (
+      <div className="admin-container">
+        <AdminSidebar />
+        <main className="content-with-sidebar"></main>
+      </div>
+    );
+  }
 
   return (
     <div className="admin-container">
@@ -208,55 +173,22 @@ const Formateurs = () => {
       
       <main className="content-with-sidebar">
         <div className="formateurs-page">
-          {/* Nouvelle structure pour le header */}
           <div className="formateurs-header">
             <h1 className="page-title">Gestion des Formateurs</h1>
             <div className="header-controls">
-              <div className="search-bar-wrapper">
-                <div className="search-bar-container">
-                  <FiSearch className="search-icon" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-input"
-                  />
-                  
-                </div>
-              </div>
-              
-              <div className="custom-filtre-container">
-                <div 
-                  className="filtre-select"
-                  onClick={toggleDropdown}
-                >
-                  <span>{filtreSpecialite}</span>
-                  <FiChevronDown className={`chevron-icon ${isDropdownOpen ? 'open' : ''}`} />
-                </div>
-                
-                {isDropdownOpen && (
-                  <div className="filtre-dropdown">
-                    {specialites.map((spec) => (
-                      <div
-                        key={spec}
-                        className={`dropdown-item ${filtreSpecialite === spec ? 'selected' : ''}`}
-                        onClick={() => selectSpecialite(spec)}
-                      >
-                        {spec}
-                      </div>
-                    ))}
-                  </div>
-                )}
+              <div className="search-bar-container">
+                <FiSearch className="search-icon" />
+                <input
+                  type="text"
+                  placeholder="Rechercher..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="search-input"
+                />
               </div>
               
               <button className="add-button" onClick={handleAddClick}>
-                <motion.span
-                  animate={{ rotate: 360 }}
-                  transition={{ repeat: Infinity, duration: 10, ease: "linear" }}
-                >
-                  <FiPlus />
-                </motion.span> Nouveau Formateur
+                <FiPlus className="icon" /> Nouveau Formateur
               </button>
             </div>
           </div>
@@ -266,6 +198,7 @@ const Formateurs = () => {
               <thead>
                 <tr>
                   <th>ID</th>
+                  <th>Image</th>
                   <th>Nom</th>
                   <th>Prénom</th>
                   <th>Email</th>
@@ -275,86 +208,78 @@ const Formateurs = () => {
                 </tr>
               </thead>
               <tbody>
-                {currentItems.length > 0 ? (
-                  currentItems.map((formateur) => (
-                    <tr key={formateur.id}>
-                      <td>{formateur.id}</td>
-                      <td>
-                        <div className="user-info">
-                          <img 
-                            src={formateur.image ? 
-                              (formateur.image.startsWith('http') ? 
-                                formateur.image : 
-                                `http://localhost:8000/storage/${formateur.image}`
-                              ) : 
-                              'http://localhost:8000/storage/images/pdp.webp'
-                            }
-                            alt={`${formateur.nom} ${formateur.prenom}`}
-                            className="profile-image"
-                            onError={(e) => {
-                              e.target.src = 'images/pdp.webp';
-                            }}
-                          />
-                          {formateur.nom}
-                        </div>
-                      </td>
-                      <td>{formateur.prenom}</td>
-                      <td>{formateur.email}</td>
-                      <td>{formateur.telephone}</td>
-                      <td>
-                        <span className="specialite-badge">{formateur.specialite}</span>
-                      </td>
-                      <td>
-                        <div className="actions">
-                          <button 
-                            className="edit-button"
-                            onClick={() => handleEditClick(formateur)}
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button 
-                            className="delete-button"
-                            onClick={() => handleDelete(formateur.id)}
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr className="no-results">
-                    <td colSpan="7">Aucun formateur trouvé</td>
+                {currentItems.map((formateur) => (
+                  <tr key={`formateur-${formateur.id}`}>
+                    <td>{formateur.id}</td>
+                    <td>
+                      <div className="user-info">
+                        <img 
+                          src={formateur.image || 'http://localhost:8000/images/pdp.webp'} 
+                          alt={`${formateur.nom} ${formateur.prenom}`}
+                          className="profile-image"
+                          onError={(e) => {
+                            e.target.src = 'http://localhost:8000/images/pdp.webp';
+                          }}
+                        />
+                      </div>
+                    </td>
+                    <td>{formateur.nom}</td>
+                    <td>{formateur.prenom}</td>
+                    <td>{formateur.email}</td>
+                    <td>{formateur.telephone}</td>
+                    <td>
+                      <span className="specialite-badge">{formateur.specialite}</span>
+                    </td>
+                    <td>
+                      <div className="actions">
+                        <button 
+                          className="edit-button"
+                          onClick={() => handleEditClick(formateur)}
+                        >
+                          <FiEdit2 />
+                        </button>
+                        <button 
+                          className="delete-button"
+                          onClick={() => handleDelete(formateur.id)}
+                        >
+                          <FiTrash2 />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
+                ))}
+                {currentItems.length === 0 && (
+                  <tr className="no-results">
+                  <td colSpan="7">Aucun chargé de formation trouvé</td>
+                </tr>
                 )}
               </tbody>
             </table>
 
-            {/* Pagination */}
             {formateursFiltres.length > itemsPerPage && (
               <div className="pagination-container">
                 <button 
-                  onClick={() => paginate(currentPage - 1)} 
+                  onClick={() => setCurrentPage(p => Math.max(p - 1, 1))} 
                   disabled={currentPage === 1}
-                  className="pagination-button pagination-nav-button"
+                  className="pagination-button"
                 >
                   <FiChevronLeft /> Précédent
                 </button>
-
+                
                 {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
                   <button
-                    key={number}
-                    onClick={() => paginate(number)}
+                    key={`page-${number}`}
+                    onClick={() => setCurrentPage(number)}
                     className={`pagination-button ${currentPage === number ? 'active' : ''}`}
                   >
                     {number}
                   </button>
                 ))}
-
+                
                 <button 
-                  onClick={() => paginate(currentPage + 1)} 
+                  onClick={() => setCurrentPage(p => Math.min(p + 1, totalPages))} 
                   disabled={currentPage === totalPages}
-                  className="pagination-button pagination-nav-button"
+                  className="pagination-button"
                 >
                   Suivant <FiChevronRight />
                 </button>
@@ -362,20 +287,19 @@ const Formateurs = () => {
             )}
           </div>
 
-          {/* Popup d'ajout */}
           {showPopup && (
             <div className="modal-overlay">
               <div className="modal-content">
                 <div className="modal-header">
-                  <h2>Ajouter un Formateur</h2>
-                  <button className="square-close-button" onClick={closePopup}>
-                    <FiX size={18} />
+                  <h2>{currentFormateur ? 'Modifier Formateur' : 'Ajouter Formateur'}</h2>
+                  <button className="close-button" onClick={closePopup}>
+                    <FiX />
                   </button>
                 </div>
                 
                 <form onSubmit={handleSubmit}>
                   <div className="input-group">
-                    <FiUser className="input-icon2" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="nom"
@@ -387,7 +311,7 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon2" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="prenom"
@@ -399,11 +323,11 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiMail className="input-icon2" />
+                    <FiMail className="input-icon" />
                     <input
                       type="email"
                       name="email"
-                      placeholder="Adresse email"
+                      placeholder="Email"
                       value={newFormateur.email}
                       onChange={handleInputChange}
                       required
@@ -411,7 +335,7 @@ const Formateurs = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiAward className="input-icon2" />
+                    <FiAward className="input-icon" />
                     <input
                       type="text"
                       name="specialite"
@@ -423,7 +347,7 @@ const Formateurs = () => {
                   </div>
 
                   <div className="input-group">
-                    <FiUser className="input-icon2" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="telephone"
@@ -439,7 +363,7 @@ const Formateurs = () => {
                       Annuler
                     </button>
                     <button type="submit" className="submit-button">
-                      Enregistrer
+                      {currentFormateur ? 'Mettre à jour' : 'Enregistrer'}
                     </button>
                   </div>
                 </form>
@@ -447,92 +371,6 @@ const Formateurs = () => {
             </div>
           )}
 
-          {/* Popup de modification */}
-          {showEditPopup && (
-            <div className="modal-overlay">
-              <div className="modal-content">
-                <div className="modal-header">
-                  <h2>Modifier le Formateur</h2>
-                  <button className="square-close-button" onClick={closePopup}>
-                    <FiX size={18} />
-                  </button>
-                </div>
-                
-                <form onSubmit={handleSubmit}>
-                  <div className="input-group">
-                    <FiUser className="input-icon2" />
-                    <input
-                      type="text"
-                      name="nom"
-                      placeholder="Nom"
-                      value={newFormateur.nom}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="input-group">
-                    <FiUser className="input-icon2" />
-                    <input
-                      type="text"
-                      name="prenom"
-                      placeholder="Prénom"
-                      value={newFormateur.prenom}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="input-group">
-                    <FiMail className="input-icon2" />
-                    <input
-                      type="email"
-                      name="email"
-                      placeholder="Adresse email"
-                      value={newFormateur.email}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="input-group">
-                    <FiAward className="input-icon2" />
-                    <input
-                      type="text"
-                      name="specialite"
-                      placeholder="Spécialité"
-                      value={newFormateur.specialite}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-
-                  <div className="input-group">
-                    <FiUser className="input-icon2" />
-                    <input
-                      type="text"
-                      name="telephone"
-                      placeholder="Téléphone"
-                      value={newFormateur.telephone}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="modal-actions">
-                    <button type="button" className="cancel-button" onClick={closePopup}>
-                      Annuler
-                    </button>
-                    <button type="submit" className="submit-button">
-                      Enregistrer
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          )}
-
-          {/* Popup de succès */}
           {showSuccessPopup && (
             <div className="success-popup-overlay">
               <div className="success-popup">
@@ -541,14 +379,13 @@ const Formateurs = () => {
                 </div>
                 <h2>Succès !</h2>
                 <p>{successMessage}</p>
-                <button className="success-btn" onClick={closeSuccessPopup}>
+                <button className="success-btn" onClick={closeMessagePopup}>
                   Continuer
                 </button>
               </div>
             </div>
           )}
 
-          {/* Popup d'erreur */}
           {showErrorPopup && (
             <div className="error-popup-overlay">
               <div className="error-popup">
@@ -557,7 +394,7 @@ const Formateurs = () => {
                 </div>
                 <h2>Erreur !</h2>
                 <p>{errorMessage}</p>
-                <button className="error-btn" onClick={closeErrorPopup}>
+                <button className="error-btn" onClick={closeMessagePopup}>
                   Compris
                 </button>
               </div>

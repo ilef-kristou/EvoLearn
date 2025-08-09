@@ -1,12 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { FiBook, FiUser, FiMail, FiPhone, FiAward } from 'react-icons/fi';
 import './InscriptionPage.css';
-
-const formationsDisponibles = [
-  { id: 1, titre: "React Avancé" },
-  { id: 2, titre: "UX/UI Design" },
-  { id: 3, titre: "Data Science" }
-];
 
 const niveaux = [
   "Baccalauréat",
@@ -17,32 +11,83 @@ const niveaux = [
 ];
 
 const InscriptionPage = () => {
+  const [formations, setFormations] = useState([]);
   const [formData, setFormData] = useState({
-    formation: '',
+    formation_id: '',
     nom: '',
     prenom: '',
     email: '',
     telephone: '',
-    niveau: ''
+    niveau: '',
+    statut:'En attente'
   });
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [selectedFormation, setSelectedFormation] = useState(null);
+
+  useEffect(() => {
+    fetch('http://localhost:8000/api/formations')
+      .then(res => res.json())
+      .then(data => setFormations(data));
+  }, []);
+
+  useEffect(() => {
+    if (formData.formation_id) {
+      const found = formations.find(f => String(f.id) === String(formData.formation_id));
+      setSelectedFormation(found || null);
+    } else {
+      setSelectedFormation(null);
+    }
+  }, [formData.formation_id, formations]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    setIsSubmitted(true);
-    setFormData({
-      formation: '',
-      nom: '',
-      prenom: '',
-      email: '',
-      telephone: '',
-      niveau: ''
-    });
+    const token = localStorage.getItem('jwt');
+    
+    // Vérification du token
+    if (!token || token === 'null' || token === 'undefined') {
+      alert("Vous devez être connecté pour soumettre une demande d'inscription. Veuillez vous connecter d'abord.");
+      return;
+    }
+    
+    try {
+      const res = await fetch('http://localhost:8000/api/participant/demandes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + token
+        },
+        body: JSON.stringify(formData)
+      });
+      
+      if (res.ok) {
+        setIsSubmitted(true);
+        setFormData({
+          formation_id: '',
+          nom: '',
+          prenom: '',
+          email: '',
+          telephone: '',
+          niveau: '',
+          statut:'En attente'
+        });
+      } else {
+        const data = await res.json();
+        if (res.status === 401) {
+          alert("Erreur d'authentification. Veuillez vous reconnecter.");
+          localStorage.removeItem('jwt'); // Supprime le token invalide
+        } else {
+          alert(data.message || "Erreur lors de l'envoi de la demande");
+        }
+      }
+    } catch (err) {
+      console.error('Erreur:', err);
+      alert("Erreur réseau ou serveur");
+    }
   };
 
   return (
@@ -77,6 +122,39 @@ const InscriptionPage = () => {
         {isSubmitted ? (
           <div style={{ textAlign: 'center', color: '#10B981', fontWeight: 600, fontSize: '1.1rem', padding: '2rem 0' }}>
             🎉 Votre inscription a bien été envoyée !
+            {selectedFormation && (
+              <div style={{ marginTop: 30 }}>
+                <h3 style={{ color: '#2C3E50', fontWeight: 700, fontSize: '1.1rem', marginBottom: 10 }}>Récapitulatif :</h3>
+                <table style={{ width: '100%', borderCollapse: 'collapse', background: '#f9fafb', borderRadius: 10 }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: 6 }}>Formation</td>
+                      <td style={{ padding: 6 }}>{selectedFormation.titre}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: 6 }}>Nom</td>
+                      <td style={{ padding: 6 }}>{formData.nom}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: 6 }}>Prénom</td>
+                      <td style={{ padding: 6 }}>{formData.prenom}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: 6 }}>Email</td>
+                      <td style={{ padding: 6 }}>{formData.email}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: 6 }}>Téléphone</td>
+                      <td style={{ padding: 6 }}>{formData.telephone}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 600, padding: 6 }}>Niveau d'étude</td>
+                      <td style={{ padding: 6 }}>{formData.niveau}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         ) : (
           <form onSubmit={handleSubmit} autoComplete="off">
@@ -87,15 +165,15 @@ const InscriptionPage = () => {
               <div style={{ position: 'relative' }}>
                 <FiBook style={{ position: 'absolute', left: 12, top: 13, color: '#F1C40F', pointerEvents: 'none' }} />
                 <select
-                  name="formation"
-                  value={formData.formation}
+                  name="formation_id"
+                  value={formData.formation_id}
                   onChange={handleInputChange}
                   required
                   style={{ width: '100%', padding: '0.7rem 0.7rem 0.7rem 2.5rem', borderRadius: 10, border: '1px solid #e5e7eb', fontSize: '1rem', background: '#f9fafb', outline: 'none', transition: 'border 0.2s' }}
                 >
                   <option value="">Sélectionnez une formation</option>
-                  {formationsDisponibles.map(f => (
-                    <option key={f.id} value={f.titre}>{f.titre}</option>
+                  {formations.map(f => (
+                    <option key={f.id} value={f.id}>{f.titre}</option>
                   ))}
                 </select>
               </div>

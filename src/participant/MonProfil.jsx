@@ -3,6 +3,7 @@ import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import ParticipantSidebar from './ParticipantSidebar';
 import { FiUser, FiMail, FiPhone, FiLock, FiEdit2, FiSave, FiBriefcase, FiCamera } from 'react-icons/fi';
+import { FiCheckCircle, FiX, FiAlertCircle } from 'react-icons/fi';
 
 const MonProfil = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -18,6 +19,9 @@ const MonProfil = () => {
   });
   const [previewAvatar, setPreviewAvatar] = useState(null);
   const fileInputRef = useRef(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [showError, setShowError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   // CHARGEMENT DES DONNÉES DU PARTICIPANT CONNECTÉ
   useEffect(() => {
@@ -66,6 +70,10 @@ const MonProfil = () => {
   const handleSave = async (e) => {
     e.preventDefault();
     setEditMode(false);
+    setShowSuccess(true); // Affiche le popup de succès immédiatement
+    setShowError(false);
+    setErrorMsg('');
+    setTimeout(() => setShowSuccess(false), 3000);
 
     const token = localStorage.getItem('jwt');
     // Préparer les données à envoyer
@@ -89,24 +97,110 @@ const MonProfil = () => {
 
       const data = await response.json();
       if (response.ok) {
-        alert('Profil mis à jour avec succès !');
-        console.log('Image reçue du backend:', data.user.image);
-        // Mettre à jour le formulaire avec les données retournées
+        // Succès : on laisse le popup
         setForm({
           ...form,
           image: data.user.image
         });
         setPreviewAvatar(null);
       } else {
-        alert(data.error || 'Erreur lors de la mise à jour du profil');
+        setShowSuccess(false);
+        setShowError(true);
+        setErrorMsg(data.error || 'Erreur lors de la mise à jour du profil');
+        setTimeout(() => setShowError(false), 3500);
       }
     } catch (error) {
-      alert('Erreur réseau');
+      setShowSuccess(false);
+      setShowError(true);
+      setErrorMsg('Erreur réseau');
+      setTimeout(() => setShowError(false), 3500);
     }
   };
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--light)', display: 'flex', flexDirection: 'column' }}>
+
+      {/* Popup de succès en haut de la page */}
+      {showSuccess && (
+        <div style={{
+          position: 'fixed',
+          top: 32,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: '#fff',
+          color: '#222',
+          borderRadius: 12,
+          boxShadow: '0 2px 16px rgba(44,62,80,0.10)',
+          padding: '0.9rem 1.7rem 0.9rem 1.2rem',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 12,
+          fontWeight: 500,
+          fontSize: '1rem',
+          minWidth: 340,
+          maxWidth: 420,
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center' }}>
+            <FiCheckCircle size={22} color="#4CAF50" />
+          </span>
+          <span style={{color:'#222', flex:1}}>Profil mis à jour avec succès !</span>
+          <button onClick={() => setShowSuccess(false)} style={{
+            background: 'none',
+            border: 'none',
+            marginLeft: 8,
+            cursor: 'pointer',
+            color: '#aaa',
+            fontSize: 20,
+            borderRadius: 6,
+            padding: 0,
+            lineHeight: 1
+          }}>
+            <FiX />
+          </button>
+        </div>
+      )}
+
+      {/* Popup d'erreur en haut de la page */}
+      {showError && (
+        <div style={{
+          position: 'fixed',
+          top: 30,
+          left: '50%',
+          transform: 'translateX(-50%)',
+          background: 'linear-gradient(90deg, #ff5858 0%, #f09819 100%)',
+          color: '#fff',
+          borderRadius: 16,
+          boxShadow: '0 8px 32px rgba(44,62,80,0.18)',
+          padding: '1.1rem 2.2rem 1.1rem 1.5rem',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          fontWeight: 700,
+          fontSize: '1.13rem',
+          minWidth: 340,
+          animation: 'popIn 0.3s cubic-bezier(.68,-0.55,.27,1.55)'
+        }}>
+          <span style={{ display: 'flex', alignItems: 'center', animation: 'shake 0.7s' }}>
+            <FiAlertCircle size={32} color="#fff" />
+          </span>
+          <span>{errorMsg}</span>
+          <button onClick={() => setShowError(false)} style={{
+            background: 'rgba(255,255,255,0.18)',
+            border: 'none',
+            marginLeft: 'auto',
+            cursor: 'pointer',
+            color: '#fff',
+            fontSize: 22,
+            borderRadius: 8,
+            padding: '2px 8px',
+            transition: 'background 0.2s'
+          }}>
+            <FiX />
+          </button>
+        </div>
+      )}
 
       <div style={{ flex: 1, display: 'flex', marginLeft:'300px',justifyContent: 'center', padding: '2.5rem 0', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', width: '100%', maxWidth: '1400px', gap: 32 }}>

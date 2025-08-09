@@ -1,89 +1,88 @@
-import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { 
+  FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiAward, 
+  FiChevronDown, FiSearch, FiChevronLeft, FiChevronRight, 
+  FiCheckCircle, FiAlertCircle 
+} from 'react-icons/fi';
 import AdminSidebar from './AdminSidebar';
 import './ChargeFormations.css';
 
-const getProfileImage = (id) => {
-  const gender = id % 2 === 0 ? 'women' : 'men';
-  return `https://randomuser.me/api/portraits/${gender}/${id % 100}.jpg`;
-};
-
 const ChargeFormations = () => {
-  const [chargeFormations, setChargeFormations] = useState([
-    { 
-      id: 1, 
-      nom: 'Jean', 
-      prenom: 'Dupont', 
-      email: 'jean@example.com', 
-      departement: 'Informatique',
-      telephone: '0601020304',
-      image: getProfileImage(1)
-    },
-    { 
-      id: 2, 
-      nom: 'Marie', 
-      prenom: 'Martin', 
-      email: 'marie@example.com', 
-      departement: 'Ressources Humaines',
-      telephone: '0605060708',
-      image: getProfileImage(2)
-    },
-    { 
-      id: 3, 
-      nom: 'Pierre', 
-      prenom: 'Lambert', 
-      email: 'pierre@example.com', 
-      departement: 'Marketing',
-      telephone: '0611223344',
-      image: getProfileImage(3)
-    },
-    { 
-      id: 4, 
-      nom: 'Sophie', 
-      prenom: 'Bernard', 
-      email: 'sophie@example.com', 
-      departement: 'Finance',
-      telephone: '0677889900',
-      image: getProfileImage(4)
-    }
-  ]);
+  const [chargeFormations, setChargeFormations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   
-  // États pour la pagination
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(4); // Nombre d'éléments par page
-  
+  // États pour les popups
   const [showPopup, setShowPopup] = useState(false);
+  const [showSuccessPopup, setShowSuccessPopup] = useState(false);
+  const [showErrorPopup, setShowErrorPopup] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  
+  // États pour le formulaire
   const [newChargeFormation, setNewChargeFormation] = useState({
     nom: '',
     prenom: '',
     email: '',
     departement: '',
-    telephone: '',
-    image: ''
+    telephone: ''
   });
   const [editingCharge, setEditingCharge] = useState(null);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
   
+  // États pour les filtres et pagination
   const [filtreDepartement, setFiltreDepartement] = useState('Tous');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  const departements = ['Tous', ...new Set(chargeFormations.map(f => f.departement))];
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(4);
 
-  // Filtrer les données
+  useEffect(() => {
+    const fetchChargeFormations = async () => {
+      try {
+        const response = await fetch('http://localhost:8000/api/admin/charges');
+        if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
+        const data = await response.json();
+        setChargeFormations(data);
+      } catch (err) {
+        console.error('Erreur:', err);
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchChargeFormations();
+  }, []);
+
+  // Fonctions pour gérer les popups
+  const closePopup = () => {
+    setShowPopup(false);
+    setEditingCharge(null);
+    setIsEditMode(false);
+  };
+
+  const closeSuccessPopup = () => {
+    setShowSuccessPopup(false);
+    setSuccessMessage('');
+  };
+
+  const closeErrorPopup = () => {
+    setShowErrorPopup(false);
+    setErrorMessage('');
+  };
+
+  // Filtrage et pagination
+  const departements = ['Tous', ...new Set(chargeFormations.map(c => c.departement).filter(Boolean))];
+
   const chargesFiltres = chargeFormations.filter(charge => {
     const matchesDepartement = filtreDepartement === 'Tous' || charge.departement === filtreDepartement;
     const matchesSearch = searchTerm === '' || 
-      charge.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      charge.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      charge.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      charge.departement.toLowerCase().includes(searchTerm.toLowerCase());
+      Object.values(charge).some(
+        val => typeof val === 'string' && val.toLowerCase().includes(searchTerm.toLowerCase())
+      );
     return matchesDepartement && matchesSearch;
   });
 
-  // Logique de pagination
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;
   const currentItems = chargesFiltres.slice(indexOfFirstItem, indexOfLastItem);
@@ -91,21 +90,14 @@ const ChargeFormations = () => {
 
   const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
-  const selectDepartement = (dept) => {
-    setFiltreDepartement(dept);
-    setIsDropdownOpen(false);
-    setCurrentPage(1); // Réinitialiser à la première page quand on change le filtre
-  };
-
+  // Gestion des actions
   const handleAddClick = () => {
     setNewChargeFormation({
       nom: '',
       prenom: '',
       email: '',
       departement: '',
-      telephone: '',
-      image: getProfileImage(chargeFormations.length + 1)
+      telephone: ''
     });
     setIsEditMode(false);
     setShowPopup(true);
@@ -113,30 +105,9 @@ const ChargeFormations = () => {
 
   const handleEditClick = (charge) => {
     setEditingCharge(charge);
-    setNewChargeFormation({
-      nom: charge.nom,
-      prenom: charge.prenom,
-      email: charge.email,
-      departement: charge.departement,
-      telephone: charge.telephone,
-      image: charge.image
-    });
+    setNewChargeFormation({ ...charge });
     setIsEditMode(true);
     setShowPopup(true);
-  };
-
-  const closePopup = () => {
-    setShowPopup(false);
-    setEditingCharge(null);
-    setIsEditMode(false);
-    setNewChargeFormation({ 
-      nom: '', 
-      prenom: '', 
-      email: '', 
-      departement: '',
-      telephone: '',
-      image: ''
-    });
   };
 
   const handleInputChange = (e) => {
@@ -146,54 +117,84 @@ const ChargeFormations = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSuccessMsg('');
-    setErrorMsg('');
-    if (isEditMode && editingCharge) {
-      // Mode édition
-      const updatedCharges = chargeFormations.map(charge => 
-        charge.id === editingCharge.id ? { ...charge, ...newChargeFormation } : charge
-      );
-      setChargeFormations(updatedCharges);
-    } else {
-      // Mode ajout
-      try {
-        const res = await fetch('http://localhost:8000/api/admin/charges', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(newChargeFormation)
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setChargeFormations([...chargeFormations, data.user]);
-          setSuccessMsg('Chargé créé et email envoyé !');
-        } else {
-          const data = await res.json();
-          setErrorMsg(data.message || 'Erreur lors de la création du chargé');
-        }
-      } catch (err) {
-        setErrorMsg('Erreur réseau ou serveur');
+    
+    try {
+      const url = isEditMode 
+        ? `http://localhost:8000/api/admin/charges/${editingCharge.id}`
+        : 'http://localhost:8000/api/admin/charges';
+      
+      const method = isEditMode ? 'PUT' : 'POST';
+      
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newChargeFormation)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Erreur lors de la requête');
       }
+
+      const result = await response.json();
+      
+      if (isEditMode) {
+        setChargeFormations(prev => prev.map(c => c.id === editingCharge.id ? result : c));
+        setSuccessMessage('Chargé de formation modifié avec succès !');
+      } else {
+        setChargeFormations(prev => [...prev, result]);
+        setSuccessMessage('Chargé de formation créé avec succès !');
+      }
+      
+      closePopup();
+      setShowSuccessPopup(true);
+    } catch (err) {
+      console.error('Erreur:', err);
+      setErrorMessage(err.message || 'Une erreur est survenue');
+      setShowErrorPopup(true);
     }
-    setNewChargeFormation({ 
-      nom: '', 
-      prenom: '', 
-      email: '', 
-      departement: '',
-      telephone: '',
-      image: ''
-    });
-    setEditingCharge(null);
-    setIsEditMode(false);
-    closePopup();
   };
 
-  const handleDelete = (id) => {
-    setChargeFormations(chargeFormations.filter(f => f.id !== id));
-    // Si on supprime le dernier élément de la page, revenir à la page précédente
-    if (currentItems.length === 1 && currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+  const handleDelete = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/admin/charges/${id}`, {
+        method: 'DELETE'
+      });
+
+      if (!response.ok) throw new Error('Échec de la suppression');
+
+      setChargeFormations(prev => prev.filter(c => c.id !== id));
+      if (currentItems.length === 1 && currentPage > 1) {
+        setCurrentPage(prev => prev - 1);
+      }
+      setSuccessMessage('Chargé de formation supprimé avec succès !');
+      setShowSuccessPopup(true);
+    } catch (err) {
+      console.error('Erreur:', err);
+      setErrorMessage(err.message || 'Échec de la suppression');
+      setShowErrorPopup(true);
     }
   };
+
+  if (loading) return (
+    <div className="admin-container">
+      <AdminSidebar />
+      <main className="content-with-sidebar"></main>
+    </div>
+  );
+
+  if (error) return (
+    <div className="admin-container">
+      <AdminSidebar />
+      <main className="content-with-sidebar">
+        <div className="error-message">
+          <FiAlertCircle size={24} />
+          <p>{error}</p>
+          <button onClick={() => window.location.reload()}>Réessayer</button>
+        </div>
+      </main>
+    </div>
+  );
 
   return (
     <div className="admin-container">
@@ -239,19 +240,7 @@ const ChargeFormations = () => {
                   currentItems.map((charge) => (
                     <tr key={charge.id}>
                       <td>{charge.id}</td>
-                      <td>
-                        <div className="user-info">
-                          <img 
-                            src={charge.image} 
-                            alt={`${charge.nom} ${charge.prenom}`}
-                            className="profile-image"
-                            onError={(e) => {
-                              e.target.src = 'https://randomuser.me/api/portraits/lego/1.jpg';
-                            }}
-                          />
-                          {charge.nom}
-                        </div>
-                      </td>
+                      <td>{charge.nom}</td>
                       <td>{charge.prenom}</td>
                       <td>{charge.email}</td>
                       <td>{charge.telephone}</td>
@@ -260,16 +249,10 @@ const ChargeFormations = () => {
                       </td>
                       <td>
                         <div className="actions">
-                          <button 
-                            className="edit-button" 
-                            onClick={() => handleEditClick(charge)}
-                          >
+                          <button className="edit-button" onClick={() => handleEditClick(charge)}>
                             <FiEdit2 />
                           </button>
-                          <button 
-                            className="delete-button"
-                            onClick={() => handleDelete(charge.id)}
-                          >
+                          <button className="delete-button" onClick={() => handleDelete(charge.id)}>
                             <FiTrash2 />
                           </button>
                         </div>
@@ -284,62 +267,30 @@ const ChargeFormations = () => {
               </tbody>
             </table>
 
-            {/* Pagination */}
             {chargesFiltres.length > itemsPerPage && (
               <div className="pagination-container">
                 <button 
                   onClick={() => paginate(currentPage - 1)} 
                   disabled={currentPage === 1}
-                  className="pagination-button pagination-nav-button"
+                  className="pagination-button"
                 >
                   <FiChevronLeft /> Précédent
                 </button>
-
-                {/* Premier bouton */}
-                <button
-                  onClick={() => paginate(1)}
-                  className={`pagination-button ${currentPage === 1 ? 'active' : ''}`}
-                >
-                  1
-                </button>
-
-                {/* Points de suspension si nécessaire */}
-                {currentPage > 3 && (
-                  <span className="pagination-ellipsis">...</span>
-                )}
-
-                {/* Boutons autour de la page courante */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter(num => num > 1 && num < totalPages && Math.abs(num - currentPage) <= 1)
-                  .map(number => (
-                    <button
-                      key={number}
-                      onClick={() => paginate(number)}
-                      className={`pagination-button ${currentPage === number ? 'active' : ''}`}
-                    >
-                      {number}
-                    </button>
-                  ))}
-
-                {/* Points de suspension si nécessaire */}
-                {currentPage < totalPages - 2 && totalPages > 3 && (
-                  <span className="pagination-ellipsis">...</span>
-                )}
-
-                {/* Dernier bouton */}
-                {totalPages > 1 && (
+                
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
                   <button
-                    onClick={() => paginate(totalPages)}
-                    className={`pagination-button ${currentPage === totalPages ? 'active' : ''}`}
+                    key={number}
+                    onClick={() => paginate(number)}
+                    className={`pagination-button ${currentPage === number ? 'active' : ''}`}
                   >
-                    {totalPages}
+                    {number}
                   </button>
-                )}
-
+                ))}
+                
                 <button 
                   onClick={() => paginate(currentPage + 1)} 
                   disabled={currentPage === totalPages}
-                  className="pagination-button pagination-nav-button"
+                  className="pagination-button"
                 >
                   Suivant <FiChevronRight />
                 </button>
@@ -347,11 +298,12 @@ const ChargeFormations = () => {
             )}
           </div>
 
+          {/* Popup de formulaire */}
           {showPopup && (
             <div className="modal-overlay">
               <div className="modal-content">
                 <div className="modal-header">
-                  <h2>{isEditMode ? 'Modifier un Chargé de Formation' : 'Ajouter un Chargé de Formation'}</h2>
+                  <h2>{isEditMode ? 'Modifier un Chargé' : 'Ajouter un Chargé'}</h2>
                   <button className="close-button" onClick={closePopup}>
                     <FiX />
                   </button>
@@ -359,7 +311,7 @@ const ChargeFormations = () => {
                 
                 <form onSubmit={handleSubmit}>
                   <div className="input-group">
-                    <FiUser className="input-icon1" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="nom"
@@ -371,7 +323,7 @@ const ChargeFormations = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon1" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="prenom"
@@ -383,11 +335,11 @@ const ChargeFormations = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiMail className="input-icon1" />
+                    <FiMail className="input-icon" />
                     <input
                       type="email"
                       name="email"
-                      placeholder="Adresse email"
+                      placeholder="Email"
                       value={newChargeFormation.email}
                       onChange={handleInputChange}
                       required
@@ -395,7 +347,7 @@ const ChargeFormations = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon1" />
+                    <FiAward className="input-icon" />
                     <input
                       type="text"
                       name="telephone"
@@ -407,21 +359,18 @@ const ChargeFormations = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiAward className="input-icon1" />
-                    <div className="custom-select">
-                      <select
-                        name="departement"
-                        value={newChargeFormation.departement}
-                        onChange={handleInputChange}
-                        required
-                      >
-                        <option value="">Sélectionnez un département</option>
-                        {departements.filter(d => d !== 'Tous').map((dept) => (
-                          <option key={dept} value={dept}>{dept}</option>
-                        ))}
-                      </select>
-                      <FiChevronDown className="select-chevron" />
-                    </div>
+                    <FiAward className="input-icon" />
+                    <select
+                      name="departement"
+                      value={newChargeFormation.departement}
+                      onChange={handleInputChange}
+                      required
+                    >
+                      <option value="">Sélectionnez un département</option>
+                      {['informatique', 'rh', 'marketing'].map(dept => (
+                        <option key={dept} value={dept}>{dept}</option>
+                      ))}
+                    </select>
                   </div>
                   
                   <div className="modal-actions">
@@ -436,8 +385,38 @@ const ChargeFormations = () => {
               </div>
             </div>
           )}
-          {successMsg && <div className="success-message">{successMsg}</div>}
-          {errorMsg && <div className="error-message">{errorMsg}</div>}
+
+          {/* Popup de succès */}
+          {showSuccessPopup && (
+            <div className="success-popup-overlay">
+              <div className="success-popup">
+                <div className="success-icon">
+                  <FiCheckCircle size={60} color="#4CAF50" />
+                </div>
+                <h2>Succès !</h2>
+                <p>{successMessage}</p>
+                <button className="success-btn" onClick={closeSuccessPopup}>
+                  Continuer
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Popup d'erreur */}
+          {showErrorPopup && (
+            <div className="error-popup-overlay">
+              <div className="error-popup">
+                <div className="error-icon">
+                  <FiAlertCircle size={60} color="#F44336" />
+                </div>
+                <h2>Erreur !</h2>
+                <p>{errorMessage}</p>
+                <button className="error-btn" onClick={closeErrorPopup}>
+                  Compris
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </div>

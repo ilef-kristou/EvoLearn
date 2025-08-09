@@ -278,7 +278,17 @@ const Participants = () => {
                 {currentItems.length > 0 ? (
                   currentItems.map((participant) => (
                     <tr key={participant.id}>
-                      <td>{participant.nom}</td>
+                      <td>
+                        <div className="user-info">
+                          <img 
+                            src={participant.image}
+                            alt={`${participant.nom} ${participant.prenom}`}
+                            className="profile-image"
+                            onError={e => { e.target.src = pdp; }}
+                          />
+                          {participant.nom}
+                        </div>
+                      </td>
                       <td>{participant.prenom}</td>
                       <td>{participant.email}</td>
                       <td>{participant.telephone}</td>
