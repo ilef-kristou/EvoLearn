@@ -1,0 +1,184 @@
+*{
+    margin:0;
+    padding: 0;
+}
+@keyframes slid{
+    from{
+        transform: translateX(0);
+    }
+    to {
+        transform: translateX(-100%);
+    }
+}
+.logo-slide{
+    animation : 40s slid infinite linear;
+    display: inline-block;
+}
+.logos{
+    overflow: hidden;
+    padding: 60px 0;
+    background: white;
+    white-space: nowrap;
+    margin-top: -70px;
+
+}
+
+.logo-slide img{
+    width: 130px;
+    height: auto;
+    margin: 0 50px;
+}
+
+.Sponsorss{
+    margin-top: 70px;
+    font-family: 'AmpleSoftBold',sans-serif;
+    font-size: 50px;
+    color: #39ab49;
+    text-align: center;
+    margin-bottom: 100px;
+}
+
+
+
+#l4 {
+    width: 280px;
+    height: auto;
+}
+
+#l5{
+    width: 230px;
+    height: auto;
+}
+
+#l7,#l8,#l9,#l10{
+    width: 300px;
+    height: auto;
+}
+
+#l7{
+    margin-bottom: 30px;
+}
+
+#l8{
+    margin-bottom: 40px;
+}
+
+#l9{
+    margin-bottom: 10px;
+}
+
+#l10{
+    margin-bottom: 30px;
+}
+
+#l12,#l13,#l15{
+    width: 190px;
+    height: auto;
+}
+
+#l13{
+    margin-bottom: 20px;
+}
+
+#l15{
+    margin-bottom: 10px;
+}
+
+#l14{
+    width:260px ;
+    height: auto;
+    margin-bottom: 30px;
+}
+
+#l17{
+    width: 220px;
+    height: auto;
+}
+
+#l19{
+    width: 220px;
+    height: auto;
+}
+
+#l20{
+    width: 200px;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+#l22,#l23,#l25{
+    width: 200px;
+    height: auto;
+}
+
+#l25{
+    margin-bottom: 20px;
+}
+
+#l22{
+    margin-bottom: 10px;
+}
+
+#l24{
+    width: 300px !important;
+    margin-bottom: 22px;
+}
+
+#l27,#l28,#l29{
+    width: 240px;
+    height: auto;
+}
+
+#l27{
+    margin-bottom: 30px;
+}
+
+#l30 {
+    width: 200px;
+    height: auto;
+}
+
+#l29{
+    margin-bottom: 10px;
+}
+
+#l31{
+    width: 170px;
+    height: auto;
+}
+
+#l32,#l33,#l34{
+    width: 180px;
+    height: auto;
+}
+
+#l33,#l34{
+    margin-bottom: 35px;
+}
+
+#l37,#l38{
+    width: 250px;
+    height: auto;
+}
+
+#l41,#l42,#l43{
+    width: 250px;
+    height: auto;
+}
+
+#l41{
+    margin-bottom: 20px;
+}
+
+#l42{
+    margin-bottom: 30px;
+}
+
+#l40{
+    width: 230px;
+    height: auto;
+    margin-bottom: 5px;
+}
+
+
+
