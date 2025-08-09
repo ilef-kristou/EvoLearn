@@ -55,9 +55,42 @@ class ParticipantController extends Controller
     /**
      * Récupère le profil du participant connecté.
      */
-    public function getProfile()
+    public function getProfile(Request $request)
     {
-        $user = Auth::user();
-        return response()->json($user);
+        try {
+            $participant = auth()->user();
+            \Log::info('Données utilisateur récupérées', ['user' => $participant]);
+
+            if (!$participant) {
+                return response()->json(['error' => 'Utilisateur non authentifié'], 401);
+            }
+
+            return response()->json($participant);
+        } catch (\Exception $e) {
+            \Log::error('Erreur lors de la récupération du profil', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erreur serveur'], 500);
+        }
     }
-} 
+
+    /**
+     * Supprime le compte du participant connecté.
+     */
+    public function deleteAccount()
+    {
+        try {
+            $user = Auth::user();
+            
+            // Supprimer l'image si ce n'est pas l'image par défaut
+            if ($user->image && $user->image !== 'images/pdp.webp') {
+                Storage::disk('public')->delete($user->image);
+            }
+            
+            $user->delete();
+            
+            return response()->json(['message' => 'Compte supprimé avec succès']);
+        } catch (\Exception $e) {
+            \Log::error('Participant - Exception suppression compte', ['message' => $e->getMessage()]);
+            return response()->json(['error' => 'Erreur lors de la suppression du compte'], 500);
+        }
+    }
+}

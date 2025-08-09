@@ -27,20 +27,16 @@ class FormateurController extends Controller
 
         // Gestion de l'image
         if ($request->has('image') && $request->image) {
-            // Si c'est une image en base64
             if (strpos($request->image, 'data:image') === 0) {
-                // Supprimer l'ancienne image si elle existe et n'est pas l'image par défaut
                 if ($user->image && $user->image !== 'images/pdp.webp' && Storage::disk('public')->exists($user->image)) {
                     Storage::disk('public')->delete($user->image);
                 }
                 
-                // Décoder et sauvegarder la nouvelle image
                 $imageData = base64_decode(explode(',', $request->image)[1]);
                 $imageName = 'images/' . time() . '_' . uniqid() . '.webp';
                 Storage::disk('public')->put($imageName, $imageData);
                 $validated['image'] = $imageName;
             } else {
-                // Si c'est déjà un chemin, le garder tel quel
                 $validated['image'] = $request->image;
             }
         }
@@ -61,4 +57,24 @@ class FormateurController extends Controller
         $user = Auth::user();
         return response()->json($user);
     }
-} 
+
+    /**
+     * Récupère les formateurs disponibles
+     */
+    public function availableFormateurs()
+    {
+        try {
+            $formateurs = User::where('role', 'formateur')
+                ->select('id', 'nom', 'prenom', 'specialite')
+                ->get();
+            
+            return response()->json($formateurs);
+        } catch (\Exception $e) {
+            \Log::error('Error fetching available formateurs: ' . $e->getMessage());
+            return response()->json([
+                'message' => 'Erreur lors de la récupération des formateurs',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+}
