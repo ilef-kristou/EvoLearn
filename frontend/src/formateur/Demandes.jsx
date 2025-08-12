@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import FormateurSidebar from './FormateurSidebar';
-import { FiMail, FiCheck, FiX, FiUser, FiBook, FiCalendar, FiClock, FiMapPin, FiMessageSquare } from 'react-icons/fi';
+import { FiMail, FiCheck, FiX, FiBook, FiCalendar, FiClock, FiMapPin, FiMessageSquare } from 'react-icons/fi';
+
+const API_BASE = "http://localhost:8000/api";
 
 const Demandes = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -10,90 +12,186 @@ const Demandes = () => {
   const [showModal, setShowModal] = useState(false);
   const [modalType, setModalType] = useState('');
   const [refuseReason, setRefuseReason] = useState('');
+  const [demandes, setDemandes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [confirmation, setConfirmation] = useState(null);
+  const [formateurId, setFormateurId] = useState(null);
 
-  const demandesData = [
-    {
-      id: 1,
-      formation: 'React Avancé',
-      chargeFormation: 'Marie Martin',
-      dateDemande: '2024-06-15',
-      dateDebut: '2024-07-01',
-      dateFin: '2024-09-30',
-      participants: 25,
-      salle: 'A1',
-      planning: [
-        { jour: 'Lundi', heure: '09:00-12:00' },
-        { jour: 'Mercredi', heure: '14:00-17:00' }
-      ],
-      statut: 'En attente',
-      description: 'Formation React avancée pour une équipe de développeurs expérimentés'
-    },
-    {
-      id: 2,
-      formation: 'UX/UI Design',
-      chargeFormation: 'Pierre Durand',
-      dateDemande: '2024-06-14',
-      dateDebut: '2024-07-15',
-      dateFin: '2024-09-15',
-      participants: 18,
-      salle: 'B1',
-      planning: [
-        { jour: 'Mardi', heure: '14:00-17:00' },
-        { jour: 'Jeudi', heure: '09:00-12:00' }
-      ],
-      statut: 'En attente',
-      description: 'Formation design d\'interface pour des designers débutants'
-    },
-    {
-      id: 3,
-      formation: 'JavaScript ES6+',
-      chargeFormation: 'Sophie Lambert',
-      dateDemande: '2024-06-13',
-      dateDebut: '2024-08-01',
-      dateFin: '2024-10-30',
-      participants: 32,
-      salle: 'A2',
-      planning: [
-        { jour: 'Lundi', heure: '10:00-13:00' },
-        { jour: 'Mercredi', heure: '09:00-12:00' }
-      ],
-      statut: 'Acceptée',
-      description: 'Formation JavaScript moderne pour développeurs web'
-    }
-  ];
+  const token = localStorage.getItem('jwt');
 
-  const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-
-  const handleAccept = (demande) => {
-    setSelectedDemande(demande);
-    setModalType('accept');
-    setShowModal(true);
-  };
-
-  const handleRefuse = (demande) => {
-    setSelectedDemande(demande);
-    setModalType('refuse');
-    setShowModal(true);
-  };
-
-  const handleModalSubmit = () => {
-    if (modalType === 'refuse' && !refuseReason.trim()) {
-      alert('Veuillez indiquer un motif de refus');
+  useEffect(() => {
+    if (!token) {
+      setError("Utilisateur non authentifié. Veuillez vous connecter.");
+      setLoading(false);
       return;
     }
-    
-    console.log(`${modalType === 'accept' ? 'Acceptation' : 'Refus'} de la demande ${selectedDemande.id}`, modalType === 'refuse' ? `Motif: ${refuseReason}` : '');
-    
-    setShowModal(false);
-    setRefuseReason('');
-    setSelectedDemande(null);
+
+    const fetchFormateurProfile = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/formateur/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        setFormateurId(data.id);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    const fetchDemandes = async () => {
+      if (!formateurId) return;
+
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE}/plannings/formateur/${formateurId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        // Normalisation des données
+        const planningsData = Array.isArray(data?.plannings) ? data.plannings : [];
+        if (!Array.isArray(planningsData)) {
+          throw new Error("Format de données invalide reçu de l'API");
+        }
+
+        const mappedDemandes = planningsData.map(planning => ({
+          id: planning.id,
+          formation: planning.formation?.titre || 'Formation inconnue',
+          chargeFormation: 'Chargé inconnu',
+          dateDemande: planning.created_at,
+          dateDebut: planning.formation?.date_debut,
+          dateFin: planning.formation?.date_fin,
+          participants: planning.formation?.places_disponibles || 20,
+          salle: planning.jours?.[0]?.salle?.nom || 'Salle inconnue',
+          planning: Array.isArray(planning.jours) 
+            ? planning.jours.map(jour => ({
+                jour: jour.jour || 'Jour inconnu',
+                heure: jour.heure_debut && jour.heure_fin 
+                  ? `${jour.heure_debut}-${jour.heure_fin}`
+                  : 'Heure non spécifiée',
+              }))
+            : [],
+          statut: planning.statut === 'en_attente' ? 'En attente' : 
+                  planning.statut === 'accepte' ? 'Acceptée' : 'Refusée',
+          description: planning.formation?.description || 'Aucune description',
+          cause_refus: planning.cause_refus,
+        }));
+
+        setDemandes(mappedDemandes);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const loadData = async () => {
+      await fetchFormateurProfile();
+      if (formateurId) {
+        await fetchDemandes();
+      }
+    };
+
+    loadData();
+  }, [token, formateurId]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'Date inconnue';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return 'Date inconnue';
+    }
+  };
+
+  const handleAccept = async (demande) => {
+    try {
+      const response = await fetch(`${API_BASE}/plannings/${demande.id}/accept`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${await response.text()}`);
+      }
+
+      setDemandes(prev => 
+        prev.map(d => 
+          d.id === demande.id ? { ...d, statut: 'Acceptée', cause_refus: null } : d
+        )
+      );
+      setConfirmation(`Demande pour "${demande.formation}" acceptée avec succès`);
+      setTimeout(() => setConfirmation(null), 3000);
+      setShowModal(false);
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleRefuse = async (demande) => {
+    if (!refuseReason.trim()) {
+      setError('Veuillez indiquer un motif de refus');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/plannings/${demande.id}/refuse`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ cause_refus: refuseReason }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Erreur ${response.status}: ${await response.text()}`);
+      }
+
+      setDemandes(prev => 
+        prev.map(d => 
+          d.id === demande.id ? { ...d, statut: 'Refusée', cause_refus: refuseReason } : d
+        )
+      );
+      setConfirmation(`Demande pour "${demande.formation}" refusée`);
+      setTimeout(() => setConfirmation(null), 3000);
+      setShowModal(false);
+      setRefuseReason('');
+    } catch (err) {
+      setError(err.message);
+    }
   };
 
   const getStatutColor = (statut) => {
@@ -147,354 +245,92 @@ const Demandes = () => {
               width: '100%', 
               maxWidth: '900px'
             }}>
-              {/* Header */}
-              <div style={{ 
-                background: 'var(--white)', 
-                borderRadius: 22, 
-                boxShadow: '0 8px 32px rgba(44,62,80,0.10)', 
-                padding: '2.5rem 2.2rem', 
-                marginBottom: 32 
-              }}>
+              {confirmation && (
                 <div style={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 22, 
-                  marginBottom: 18 
+                  background: '#10b981', 
+                  color: 'var(--white)', 
+                  padding: '12px 16px', 
+                  borderRadius: 8, 
+                  marginBottom: 24,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8
                 }}>
-                  <div style={{ 
-                    background: 'var(--dark-blue)', 
-                    color: 'var(--white)', 
-                    borderRadius: 12, 
-                    width: 54, 
-                    height: 54, 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    justifyContent: 'center', 
-                    fontSize: 28, 
-                    fontWeight: 700, 
-                    boxShadow: '0 2px 8px rgba(44,62,80,0.3)' 
-                  }}>
-                    <FiMail />
-                  </div>
-                  <div>
-                    <h1 style={{ 
-                      color: 'var(--dark-blue)', 
-                      fontWeight: 800, 
-                      fontSize: '1.7rem', 
-                      marginBottom: 4, 
-                      letterSpacing: '-1px' 
-                    }}>
-                      Demandes de Formation
-                    </h1>
-                    <p style={{ 
-                      color: 'var(--light-blue)', 
-                      fontWeight: 500, 
-                      fontSize: '1.01rem' 
-                    }}>
-                      Gérez les demandes des chargés de formation
-                    </p>
-                  </div>
+                  <FiCheck size={16} />
+                  {confirmation}
                 </div>
-              </div>
+              )}
 
-              {/* Liste des demandes */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                {demandesData.map((demande) => (
-                  <div key={demande.id} style={{ 
-                    background: 'var(--white)', 
-                    borderRadius: 22, 
-                    boxShadow: '0 8px 32px rgba(44,62,80,0.10)', 
-                    padding: '2.5rem 2.2rem' 
-                  }}>
-                    {/* En-tête demande */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'flex-start', 
-                      marginBottom: 20 
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 12, 
-                          marginBottom: 8 
-                        }}>
-                          <h2 style={{ 
-                            color: 'var(--dark-blue)', 
-                            fontWeight: 700, 
-                            fontSize: '1.4rem', 
-                            margin: 0 
-                          }}>
-                            {demande.formation}
-                          </h2>
-                          <span style={{ 
-                            background: getStatutColor(demande.statut),
-                            color: 'var(--dark-blue)',
-                            padding: '4px 12px',
-                            borderRadius: 20,
-                            fontSize: '0.8rem',
-                            fontWeight: 600
-                          }}>
-                            {demande.statut}
-                          </span>
-                        </div>
-                        
-                        {/* Infos rapides */}
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 20, 
-                          marginBottom: 16 
-                        }}>
-                          <span style={{ 
-                            color: 'var(--gold)', 
-                            fontSize: '0.9rem', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 4 
-                          }}>
-                            <FiBook size={16} />
-                            {demande.participants} participants
-                          </span>
-                          <span style={{ 
-                            color: 'var(--light-blue)', 
-                            fontSize: '0.9rem', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 4 
-                          }}>
-                            <FiMapPin size={16} />
-                            {demande.salle}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      {demande.statut === 'En attente' && (
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button 
-                            onClick={() => handleAccept(demande)}
-                            style={{ 
-                              background: 'rgb(159 225 203)', 
-                              color: '#146e50', 
-                              border: 'none', 
-                              borderRadius: 8, 
-                              padding: '8px 16px', 
-                              cursor: 'pointer', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 4,
-                              fontWeight: 600
-                            }}
-                          >
-                            <FiCheck size={16} />
-                            Accepter
-                          </button>
-                          <button 
-                            onClick={() => handleRefuse(demande)}
-                            style={{ 
-                              background: 'rgb(193 84 84)', 
-                              color: 'var(--white)', 
-                              border: 'none', 
-                              borderRadius: 8, 
-                              padding: '8px 16px', 
-                              cursor: 'pointer', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 4,
-                              fontWeight: 600
-                            }}
-                          >
-                            <FiX size={16} />
-                            Refuser
-                          </button>
-                        </div>
-                      )}
-                    </div>
+              {error && (
+                <div style={{ 
+                  background: '#ef4444', 
+                  color: 'var(--white)', 
+                  padding: '12px 16px', 
+                  borderRadius: 8, 
+                  marginBottom: 24 
+                }}>
+                  Erreur : {error}
+                </div>
+              )}
 
-                    {/* Détails de la demande */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr', 
-                      gap: 24 
-                    }}>
-                      {/* Période */}
-                      <div>
-                        <h3 style={{ 
-                          color: 'var(--dark-blue)', 
-                          fontWeight: 600, 
-                          marginBottom: 12 
-                        }}>
-                          Période de formation
-                        </h3>
-                        <div style={{ 
-                          background: 'var(--light-gray)', 
-                          borderRadius: 10, 
-                          padding: '1rem', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 8 
-                        }}>
-                          <FiCalendar style={{ 
-                            color: 'var(--light-blue)', 
-                            fontSize: 18 
-                          }} />
-                          <span style={{ 
-                            color: 'var(--dark-blue)', 
-                            fontWeight: 500 
-                          }}>
-                            Du {formatDate(demande.dateDebut)} au {formatDate(demande.dateFin)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Planning */}
-                      <div>
-                        <h3 style={{ 
-                          color: 'var(--dark-blue)', 
-                          fontWeight: 600, 
-                          marginBottom: 12 
-                        }}>
-                          Planning proposé
-                        </h3>
-                        <div style={{ 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          gap: 8 
-                        }}>
-                          {demande.planning.map((seance, idx) => (
-                            <div key={idx} style={{ 
-                              background: 'var(--light-gray)', 
-                              borderRadius: 8, 
-                              padding: '0.8rem', 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: 12 
-                            }}>
-                              <FiCalendar style={{ 
-                                color: 'var(--light-blue)', 
-                                fontSize: 16 
-                              }} />
-                              <span style={{ 
-                                color: 'var(--dark-blue)', 
-                                fontWeight: 500, 
-                                minWidth: 70 
-                              }}>
-                                {seance.jour}
-                              </span>
-                              <FiClock style={{ 
-                                color: 'var(--gold)', 
-                                fontSize: 16 
-                              }} />
-                              <span style={{ 
-                                color: 'var(--dark-blue)', 
-                                minWidth: 80 
-                              }}>
-                                {seance.heure}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Date de demande */}
-                    <div style={{ 
-                      marginTop: 16, 
-                      padding: '12px 16px', 
-                      background: 'var(--light-gray)', 
-                      borderRadius: 8, 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: 8 
-                    }}>
-                      <FiMessageSquare style={{ 
-                        color: 'var(--light-blue)', 
-                        fontSize: 16 
-                      }} />
-                      <span style={{ 
-                        color: 'var(--dark-blue)', 
-                        fontSize: '0.9rem' 
-                      }}>
-                        Demande reçue le {formatDate(demande.dateDemande)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Modal pour accepter/refuser */}
-              {showModal && (
+              {showModal && selectedDemande && (
                 <div style={{
                   position: 'fixed',
                   top: 0,
                   left: 0,
                   right: 0,
                   bottom: 0,
-                  background: 'rgba(0,0,0,0.5)',
+                  background: 'rgba(44,62,80,0.5)',
                   display: 'flex',
-                  alignItems: 'center',
                   justifyContent: 'center',
+                  alignItems: 'center',
                   zIndex: 1000
                 }}>
                   <div style={{
                     background: 'var(--white)',
-                    borderRadius: 16,
-                    padding: '2rem',
-                    maxWidth: 500,
-                    width: '90%',
-                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)'
+                    borderRadius: 12,
+                    padding: '1.5rem',
+                    maxWidth: '500px',
+                    width: '100%',
+                    boxShadow: '0 8px 32px rgba(44,62,80,0.2)'
                   }}>
-                    <h3 style={{ 
-                      color: 'var(--dark-blue)', 
-                      fontWeight: 700, 
-                      fontSize: '1.3rem', 
-                      marginBottom: 16 
+                    <h3 style={{
+                      color: 'var(--dark-blue)',
+                      fontWeight: 600,
+                      marginBottom: '1rem'
                     }}>
-                      {modalType === 'accept' ? 'Accepter la demande' : 'Refuser la demande'}
+                      {modalType === 'accept' ? 'Confirmer l\'acceptation' : 'Confirmer le refus'}
                     </h3>
-                    
-                    <p style={{ 
-                      color: 'var(--dark-blue)', 
-                      marginBottom: 16 
+                    <p style={{
+                      color: 'var(--dark-blue)',
+                      marginBottom: '1rem'
                     }}>
-                      {modalType === 'accept' 
-                        ? `Êtes-vous sûr de vouloir accepter la demande pour la formation "${selectedDemande?.formation}" ?`
-                        : `Êtes-vous sûr de vouloir refuser la demande pour la formation "${selectedDemande?.formation}" ?`
-                      }
+                      {modalType === 'accept'
+                        ? `Voulez-vous accepter la demande pour "${selectedDemande.formation}" ?`
+                        : `Veuillez indiquer le motif du refus pour "${selectedDemande.formation}".`}
                     </p>
-
                     {modalType === 'refuse' && (
-                      <div style={{ marginBottom: 16 }}>
-                        <label style={{ 
-                          color: 'var(--dark-blue)', 
-                          fontWeight: 600, 
-                          display: 'block', 
-                          marginBottom: 8 
-                        }}>
-                          Motif du refus *
-                        </label>
-                        <textarea
-                          value={refuseReason}
-                          onChange={(e) => setRefuseReason(e.target.value)}
-                          placeholder="Indiquez le motif du refus..."
-                          style={{
-                            width: '100%',
-                            minHeight: 100,
-                            padding: '12px',
-                            border: '1px solid var(--light-gray)',
-                            borderRadius: 8,
-                            fontSize: '0.9rem',
-                            resize: 'vertical'
-                          }}
-                        />
-                      </div>
+                      <textarea
+                        value={refuseReason}
+                        onChange={(e) => setRefuseReason(e.target.value)}
+                        placeholder="Motif du refus"
+                        style={{
+                          width: '100%',
+                          padding: '0.7rem',
+                          borderRadius: 10,
+                          border: '1px solid var(--light-gray)',
+                          fontSize: '1rem',
+                          background: 'var(--light-gray)',
+                          outline: 'none',
+                          marginBottom: '1rem',
+                          resize: 'vertical'
+                        }}
+                      />
                     )}
-
-                    <div style={{ 
-                      display: 'flex', 
-                      gap: 12, 
-                      justifyContent: 'flex-end' 
+                    <div style={{
+                      display: 'flex',
+                      gap: 12,
+                      justifyContent: 'flex-end'
                     }}>
                       <button
                         onClick={() => {
@@ -507,29 +343,327 @@ const Demandes = () => {
                           color: 'var(--dark-blue)',
                           border: 'none',
                           borderRadius: 8,
-                          padding: '10px 20px',
-                          cursor: 'pointer',
-                          fontWeight: 600
+                          padding: '0.8rem 1.5rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
                         }}
                       >
                         Annuler
                       </button>
                       <button
-                        onClick={handleModalSubmit}
+                        onClick={() => modalType === 'accept' 
+                          ? handleAccept(selectedDemande) 
+                          : handleRefuse(selectedDemande)
+                        }
                         style={{
-                          background: modalType === 'accept' ? 'rgb(159, 225, 203)' : 'rgb(193 84 84)',
-                          color: 'var(--white)',
+                          background: modalType === 'accept' ? 'rgb(159 225 203)' : 'rgb(193 84 84)',
+                          color: modalType === 'accept' ? '#146e50' : 'var(--white)',
                           border: 'none',
                           borderRadius: 8,
-                          padding: '10px 20px',
-                          cursor: 'pointer',
-                          fontWeight: 600
+                          padding: '0.8rem 1.5rem',
+                          fontWeight: 600,
+                          cursor: 'pointer'
                         }}
                       >
-                        {modalType === 'accept' ? 'Accepter' : 'Refuser'}
+                        {modalType === 'accept' ? 'Confirmer' : 'Refuser'}
                       </button>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {loading && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: 'var(--dark-blue)', 
+                  fontSize: '1.2rem' 
+                }}>
+                  Chargement des demandes...
+                </div>
+              )}
+
+              {!loading && !error && demandes.length === 0 && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: 'var(--light-blue)', 
+                  fontSize: '1.2rem' 
+                }}>
+                  Aucune demande disponible
+                </div>
+              )}
+
+              {!loading && !error && demandes.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {demandes.map((demande) => (
+                    <div key={demande.id} style={{ 
+                      background: 'var(--white)', 
+                      borderRadius: 22, 
+                      boxShadow: '0 8px 32px rgba(44,62,80,0.10)', 
+                      padding: '2.5rem 2.2rem' 
+                    }}>
+                      <div style={{ 
+                        display: 'flex', 
+                        justifyContent: 'space-between', 
+                        alignItems: 'flex-start', 
+                        marginBottom: 20 
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 12, 
+                            marginBottom: 8 
+                          }}>
+                            <h2 style={{ 
+                              color: 'var(--dark-blue)', 
+                              fontWeight: 700, 
+                              fontSize: '1.4rem', 
+                              margin: 0 
+                            }}>
+                              {demande.formation}
+                            </h2>
+                            <span style={{ 
+                              background: getStatutColor(demande.statut),
+                              color: 'var(--dark-blue)',
+                              padding: '4px 12px',
+                              borderRadius: 20,
+                              fontSize: '0.8rem',
+                              fontWeight: 600
+                            }}>
+                              {demande.statut}
+                            </span>
+                          </div>
+                          
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 20, 
+                            marginBottom: 16 
+                          }}>
+                            <span style={{ 
+                              color: 'var(--gold)', 
+                              fontSize: '0.9rem', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 4 
+                            }}>
+                              <FiBook size={16} />
+                              {demande.participants} participants
+                            </span>
+                          </div>
+                          {demande.statut === 'Refusée' && demande.cause_refus && (
+                            <div style={{ 
+                              color: '#ef4444', 
+                              fontSize: '0.9rem', 
+                              marginBottom: 16 
+                            }}>
+                              Motif du refus : {demande.cause_refus}
+                            </div>
+                          )}
+                        </div>
+                        
+                        {demande.statut === 'En attente' && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button 
+                              onClick={() => {
+                                setSelectedDemande(demande);
+                                setModalType('accept');
+                                setShowModal(true);
+                              }}
+                              style={{ 
+                                background: 'rgb(159 225 203)', 
+                                color: '#146e50', 
+                                border: 'none', 
+                                borderRadius: 8, 
+                                padding: '8px 16px', 
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 4,
+                                fontWeight: 600
+                              }}
+                            >
+                              <FiCheck size={16} />
+                              Accepter
+                            </button>
+                            <button 
+                              onClick={() => {
+                                setSelectedDemande(demande);
+                                setModalType('refuse');
+                                setShowModal(true);
+                              }}
+                              style={{ 
+                                background: 'rgb(193 84 84)', 
+                                color: 'var(--white)', 
+                                border: 'none', 
+                                borderRadius: 8, 
+                                padding: '8px 16px', 
+                                cursor: 'pointer', 
+                                display: 'flex', 
+                                alignItems: 'center', 
+                                gap: 4,
+                                fontWeight: 600
+                              }}
+                            >
+                              <FiX size={16} />
+                              Refuser
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1fr 1fr', 
+                        gap: 24 
+                      }}>
+                        <div>
+                          <h3 style={{ 
+                            color: 'var(--dark-blue)', 
+                            fontWeight: 600, 
+                            marginBottom: 12 
+                          }}>
+                            Période de formation
+                          </h3>
+                          <div style={{ 
+                            background: 'var(--light-gray)', 
+                            borderRadius: 10, 
+                            padding: '1rem', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 8 
+                          }}>
+                            <FiCalendar style={{ 
+                              color: 'var(--light-blue)', 
+                              fontSize: 18 
+                            }} />
+                            <span style={{ 
+                              color: 'var(--dark-blue)', 
+                              fontWeight: 500 
+                            }}>
+                              Du {formatDate(demande.dateDebut)} au {formatDate(demande.dateFin)}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <h3 style={{ 
+                            color: 'var(--dark-blue)', 
+                            fontWeight: 600, 
+                            marginBottom: 12 
+                          }}>
+                            Planning proposé
+                          </h3>
+                          <div style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: 8 
+                          }}>
+                            {demande.planning.length > 0 ? (
+                              demande.planning.map((seance, idx) => (
+                                <div key={idx} style={{ 
+                                  background: 'var(--light-gray)', 
+                                  borderRadius: 8, 
+                                  padding: '0.8rem', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 12 
+                                }}>
+                                  <FiCalendar style={{ 
+                                    color: 'var(--light-blue)', 
+                                    fontSize: 16 
+                                  }} />
+                                  <span style={{ 
+                                    color: 'var(--dark-blue)', 
+                                    fontWeight: 500, 
+                                    minWidth: 70 
+                                  }}>
+                                    {seance.jour}
+                                  </span>
+                                  <FiClock style={{ 
+                                    color: 'var(--gold)', 
+                                    fontSize: 16 
+                                  }} />
+                                  <span style={{ 
+                                    color: 'var(--dark-blue)', 
+                                    minWidth: 80 
+                                  }}>
+                                    {seance.heure}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ 
+                                color: 'var(--light-blue)', 
+                                fontSize: '0.9rem' 
+                              }}>
+                                Aucun planning défini
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ 
+                        marginTop: 16, 
+                        padding: '12px 16px', 
+                        background: 'var(--light-gray)', 
+                        borderRadius: 8, 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: 8 
+                      }}>
+                        <FiMessageSquare style={{ 
+                          color: 'var(--light-blue)', 
+                          fontSize: 16 
+                        }} />
+                        <span style={{ 
+                          color: 'var(--dark-blue)', 
+                          fontSize: '0.9rem' 
+                        }}>
+                          Demande reçue le {formatDate(demande.dateDemande)}
+                        </span>
+                      </div>
+
+                      <div style={{ 
+                        marginTop: 16, 
+                        padding: '16px', 
+                        background: 'var(--white)', 
+                        border: '1px solid var(--light-gray)', 
+                        borderRadius: 10,
+                        minHeight: '100px', 
+                        overflowY: 'auto'
+                      }}>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                          marginBottom: 12
+                        }}>
+                          <FiMessageSquare style={{ 
+                            color: 'var(--light-blue)', 
+                            fontSize: 18 
+                          }} />
+                          <h3 style={{ 
+                            color: 'var(--dark-blue)', 
+                            fontWeight: 600, 
+                            fontSize: '1.1rem',
+                            margin: 0 
+                          }}>
+                            Description
+                          </h3>
+                        </div>
+                        <p style={{ 
+                          color: 'var(--dark-blue)', 
+                          fontSize: '1rem', 
+                          lineHeight: 1.5,
+                          margin: 0 
+                        }}>
+                          {demande.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

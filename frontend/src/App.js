@@ -213,7 +213,7 @@ function App() {
           <Route path="/charge/gestionFormations" element={<TrainingManagementPage />} />
           <Route path="/charge/demande" element={<DemandesInscriptionPage />} />
           <Route path="/charge/formations" element={<PlanningFormations />} />
-          <Route path="/charge/planning" element={<PlanningPage />} />
+          <Route path="/charge/planning/:formationId" element={<PlanningPage />} />
           <Route path="/charge/ressources" element={<RessourcesManagementPage />} />
       </Routes>
       )}

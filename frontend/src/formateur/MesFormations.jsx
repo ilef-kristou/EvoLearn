@@ -1,71 +1,141 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from '../Components/Header';
 import Footer from '../Components/Footer';
 import FormateurSidebar from './FormateurSidebar';
-import { FiBook, FiCalendar, FiUsers, FiClock, FiMapPin, FiUser, FiEdit2, FiEye } from 'react-icons/fi';
+import { FiBook, FiCalendar, FiUsers, FiClock, FiMapPin } from 'react-icons/fi';
+
+const API_BASE = "http://localhost:8000/api";
 
 const MesFormations = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [formateurId, setFormateurId] = useState(null);
+  const [formations, setFormations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const formationsData = [
-    {
-      id: 1,
-      titre: 'React Avancé',
-      description: 'Maîtrisez les hooks, context API et les performances React. Formation complète pour devenir expert React.',
-      statut: 'En cours',
-      participants: 25,
-      progression: 0.75,
-      dateDebut: '2024-06-01',
-      dateFin: '2024-08-30',
-      planning: [
-        { jour: 'Lundi', heure: '09:00-12:00', salle: 'A1' },
-        { jour: 'Mercredi', heure: '14:00-17:00', salle: 'B1' },
-        { jour: 'Vendredi', heure: '10:00-13:00', salle: 'A2' }
-      ],
-      niveau: 'Avancé',
-      duree: '3 mois'
-    },
-    {
-      id: 2,
-      titre: 'UX/UI Design',
-      description: 'Apprenez les principes du design d\'interface et créez des expériences utilisateur exceptionnelles.',
-      statut: 'En cours',
-      participants: 18,
-      progression: 0.45,
-      dateDebut: '2024-06-15',
-      dateFin: '2024-08-15',
-      planning: [
-        { jour: 'Mardi', heure: '14:00-17:00', salle: 'B1' },
-        { jour: 'Jeudi', heure: '09:00-12:00', salle: 'A1' }
-      ],
-      niveau: 'Intermédiaire',
-      duree: '2 mois'
-    },
-    {
-      id: 3,
-      titre: 'JavaScript ES6+',
-      description: 'Découvrez les nouvelles fonctionnalités de JavaScript et les bonnes pratiques modernes.',
-      statut: 'Terminée',
-      participants: 32,
-      progression: 1.0,
-      dateDebut: '2024-03-01',
-      dateFin: '2024-05-30',
-      planning: [
-        { jour: 'Lundi', heure: '10:00-13:00', salle: 'A2' },
-        { jour: 'Mercredi', heure: '09:00-12:00', salle: 'A1' }
-      ],
-      niveau: 'Débutant',
-      duree: '3 mois'
+  const token = localStorage.getItem('jwt');
+
+  useEffect(() => {
+    if (!token) {
+      setError("Utilisateur non authentifié. Veuillez vous connecter.");
+      setLoading(false);
+      return;
     }
-  ];
+
+    const fetchFormateurProfile = async () => {
+      try {
+        const response = await fetch(`${API_BASE}/formateur/profile`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        setFormateurId(data.id);
+      } catch (err) {
+        setError(err.message);
+        setLoading(false);
+      }
+    };
+
+    const fetchFormations = async () => {
+      if (!formateurId) return;
+
+      try {
+        setLoading(true);
+        const response = await fetch(`${API_BASE}/plannings/formateur/${formateurId}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        // Normalisation des données
+        const planningsData = Array.isArray(data?.plannings) ? data.plannings : [];
+        if (!Array.isArray(planningsData)) {
+          throw new Error("Format de données invalide reçu de l'API");
+        }
+
+        const mappedFormations = planningsData
+          .filter(planning => planning?.statut === 'accepte')
+          .map(planning => {
+            const start = planning.formation?.date_debut ? new Date(planning.formation.date_debut) : null;
+            const end = planning.formation?.date_fin ? new Date(planning.formation.date_fin) : null;
+            const now = new Date();
+            
+            let progression = 0.0;
+            if (start && end && !isNaN(start) && !isNaN(end) && end > start) {
+              progression = now >= end ? 1.0 : now <= start ? 0.0 : (now - start) / (end - start);
+            }
+
+            return {
+              id: planning.id,
+              titre: planning.formation?.titre || 'Formation inconnue',
+              description: planning.formation?.description || 'Aucune description',
+              statut: 'Acceptée',
+              participants: planning.formation?.places_disponibles || 20,
+              progression,
+              dateDebut: planning.formation?.date_debut,
+              dateFin: planning.formation?.date_fin,
+              planning: Array.isArray(planning.jours) 
+                ? planning.jours.map(jour => ({
+                    jour: jour.jour || 'Jour inconnu',
+                    heure: jour.heure_debut && jour.heure_fin 
+                      ? `${jour.heure_debut}-${jour.heure_fin}` 
+                      : 'Heure non spécifiée',
+                    salle: jour.salle?.nom || 'Salle inconnue',
+                  }))
+                : [],
+              niveau: planning.formation?.niveau || 'Non spécifié',
+              duree: planning.formation?.duree || 'Non spécifié',
+            };
+          });
+
+        setFormations(mappedFormations);
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    const loadData = async () => {
+      await fetchFormateurProfile();
+      if (formateurId) {
+        await fetchFormations();
+      }
+    };
+
+    loadData();
+  }, [token, formateurId]);
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    if (!dateString) return 'Date inconnue';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+      });
+    } catch {
+      return 'Date inconnue';
+    }
   };
 
   return (
@@ -110,7 +180,6 @@ const MesFormations = () => {
               width: '100%', 
               maxWidth: '900px'
             }}>
-              {/* Header */}
               <div style={{ 
                 background: 'var(--white)', 
                 borderRadius: 22, 
@@ -160,215 +229,247 @@ const MesFormations = () => {
                 </div>
               </div>
 
-              {/* Liste des formations */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-                {formationsData.map((formation) => (
-                  <div key={formation.id} style={{ 
-                    background: 'var(--white)', 
-                    borderRadius: 22, 
-                    boxShadow: '0 8px 32px rgba(44,62,80,0.10)', 
-                    padding: '2.5rem 2.2rem' 
-                  }}>
-                    {/* En-tête formation */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between', 
-                      alignItems: 'flex-start', 
-                      marginBottom: 20 
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 12, 
-                          marginBottom: 8 
-                        }}>
-                          <h2 style={{ 
-                            color: 'var(--dark-blue)', 
-                            fontWeight: 700, 
-                            fontSize: '1.4rem', 
-                            margin: 0 
-                          }}>
-                            {formation.titre}
-                          </h2>
-                          <span style={{ 
-                            background: formation.statut === 'En cours' ? 'var(--gold)' : formation.statut === 'Terminée' ? 'var(--light-blue)' : '#10b981',
-                            color: 'var(--dark-blue)',
-                            padding: '4px 12px',
-                            borderRadius: 20,
-                            fontSize: '0.8rem',
-                            fontWeight: 600
-                          }}>
-                            {formation.statut}
-                          </span>
-                        </div>
-                        
-                        {/* Infos rapides */}
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 20, 
-                          marginBottom: 16 
-                        }}>
-                          <span style={{ 
-                            color: 'var(--light-blue)', 
-                            fontSize: '0.9rem', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 4 
-                          }}>
-                            <FiUsers size={16} />
-                            {formation.participants} participants
-                          </span>
-                          <span style={{ 
-                            color: 'var(--gold)', 
-                            fontSize: '0.9rem', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            gap: 4 
-                          }}>
-                            <FiClock size={16} />
-                            {formation.duree}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+              {loading && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: 'var(--dark-blue)', 
+                  fontSize: '1.2rem' 
+                }}>
+                  Chargement des formations...
+                </div>
+              )}
 
-                    {/* Progression */}
-                    <div style={{ marginBottom: 20 }}>
+              {error && (
+                <div style={{ 
+                  background: '#ef4444', 
+                  color: 'var(--white)', 
+                  padding: '12px 16px', 
+                  borderRadius: 8, 
+                  marginBottom: 24 
+                }}>
+                  Erreur : {error}
+                </div>
+              )}
+
+              {!loading && !error && formations.length === 0 && (
+                <div style={{ 
+                  textAlign: 'center', 
+                  color: 'var(--light-blue)', 
+                  fontSize: '1.2rem' 
+                }}>
+                  Aucune formation acceptée disponible
+                </div>
+              )}
+
+              {!loading && !error && formations.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  {formations.map((formation) => (
+                    <div key={formation.id} style={{ 
+                      background: 'var(--white)', 
+                      borderRadius: 22, 
+                      boxShadow: '0 8px 32px rgba(44,62,80,0.10)', 
+                      padding: '2.5rem 2.2rem' 
+                    }}>
                       <div style={{ 
                         display: 'flex', 
                         justifyContent: 'space-between', 
-                        alignItems: 'center', 
-                        marginBottom: 8 
+                        alignItems: 'flex-start', 
+                        marginBottom: 20 
                       }}>
-                        <span style={{ 
-                          color: 'var(--dark-blue)', 
-                          fontWeight: 600 
-                        }}>
-                          Progression
-                        </span>
-                        <span style={{ 
-                          color: 'var(--light-blue)', 
-                          fontWeight: 600 
-                        }}>
-                          {Math.round(formation.progression * 100)}%
-                        </span>
-                      </div>
-                      <div style={{ 
-                        background: 'var(--light-gray)', 
-                        borderRadius: 8, 
-                        height: 12, 
-                        width: '100%', 
-                        overflow: 'hidden' 
-                      }}>
-                        <div style={{ 
-                          width: `${formation.progression * 100}%`, 
-                          background: 'linear-gradient(90deg, var(--light-blue) 0%, var(--gold) 100%)', 
-                          height: '100%', 
-                          borderRadius: 8,
-                          transition: 'width 0.4s'
-                        }}></div>
-                      </div>
-                    </div>
-
-                    {/* Période et Planning */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr', 
-                      gap: 24 
-                    }}>
-                      {/* Période */}
-                      <div>
-                        <h3 style={{ 
-                          color: 'var(--dark-blue)', 
-                          fontWeight: 600, 
-                          marginBottom: 12 
-                        }}>
-                          Période de formation
-                        </h3>
-                        <div style={{ 
-                          background: 'var(--light-gray)', 
-                          borderRadius: 10, 
-                          padding: '1rem', 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: 8 
-                        }}>
-                          <FiCalendar style={{ 
-                            color: 'var(--light-blue)', 
-                            fontSize: 18 
-                          }} />
-                          <span style={{ 
-                            color: 'var(--dark-blue)', 
-                            fontWeight: 500 
+                        <div style={{ flex: 1 }}>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 12, 
+                            marginBottom: 8 
                           }}>
-                            Du {formatDate(formation.dateDebut)} au {formatDate(formation.dateFin)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Planning */}
-                      <div>
-                        <h3 style={{ 
-                          color: 'var(--dark-blue)', 
-                          fontWeight: 600, 
-                          marginBottom: 12 
-                        }}>
-                          Planning hebdomadaire
-                        </h3>
-                        <div style={{ 
-                          display: 'flex', 
-                          flexDirection: 'column', 
-                          gap: 8 
-                        }}>
-                          {formation.planning.map((seance, idx) => (
-                            <div key={idx} style={{ 
-                              background: 'var(--light-gray)', 
-                              borderRadius: 8, 
-                              padding: '0.8rem', 
+                            <h2 style={{ 
+                              color: 'var(--dark-blue)', 
+                              fontWeight: 700, 
+                              fontSize: '1.4rem', 
+                              margin: 0 
+                            }}>
+                              {formation.titre}
+                            </h2>
+                            <span style={{ 
+                              background: '#10b981',
+                              color: 'var(--dark-blue)',
+                              padding: '4px 12px',
+                              borderRadius: 20,
+                              fontSize: '0.8rem',
+                              fontWeight: 600
+                            }}>
+                              {formation.statut}
+                            </span>
+                          </div>
+                          <div style={{ 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 20, 
+                            marginBottom: 16 
+                          }}>
+                            <span style={{ 
+                              color: 'var(--light-blue)', 
+                              fontSize: '0.9rem', 
                               display: 'flex', 
                               alignItems: 'center', 
-                              gap: 12 
+                              gap: 4 
                             }}>
-                              <FiCalendar style={{ 
+                              <FiUsers size={16} />
+                              {formation.participants} participants
+                            </span>
+                            <span style={{ 
+                              color: 'var(--gold)', 
+                              fontSize: '0.9rem', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: 4 
+                            }}>
+                              <FiClock size={16} />
+                              {formation.duree}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ marginBottom: 20 }}>
+                        <div style={{ 
+                          display: 'flex', 
+                          justifyContent: 'space-between', 
+                          alignItems: 'center', 
+                          marginBottom: 8 
+                        }}>
+                          <span style={{ 
+                            color: 'var(--dark-blue)', 
+                            fontWeight: 600 
+                          }}>
+                            Progression
+                          </span>
+                          <span style={{ 
+                            color: 'var(--light-blue)', 
+                            fontWeight: 600 
+                          }}>
+                            {Math.round(formation.progression * 100)}%
+                          </span>
+                        </div>
+                        <div style={{ 
+                          background: 'var(--light-gray)', 
+                          borderRadius: 8, 
+                          height: 12, 
+                          width: '100%', 
+                          overflow: 'hidden' 
+                        }}>
+                          <div style={{ 
+                            width: `${formation.progression * 100}%`, 
+                            background: 'linear-gradient(90deg, var(--light-blue) 0%, var(--gold) 100%)', 
+                            height: '100%', 
+                            borderRadius: 8,
+                            transition: 'width 0.4s'
+                          }}></div>
+                        </div>
+                      </div>
+                      <div style={{ 
+                        display: 'grid', 
+                        gridTemplateColumns: '1fr 1fr', 
+                        gap: 24 
+                      }}>
+                        <div>
+                          <h3 style={{ 
+                            color: 'var(--dark-blue)', 
+                            fontWeight: 600, 
+                            marginBottom: 12 
+                          }}>
+                            Période de formation
+                          </h3>
+                          <div style={{ 
+                            background: 'var(--light-gray)', 
+                            borderRadius: 10, 
+                            padding: '1rem', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            gap: 8 
+                          }}>
+                            <FiCalendar style={{ 
+                              color: 'var(--light-blue)', 
+                              fontSize: 18 
+                            }} />
+                            <span style={{ 
+                              color: 'var(--dark-blue)', 
+                              fontWeight: 500 
+                            }}>
+                              Du {formatDate(formation.dateDebut)} au {formatDate(formation.dateFin)}
+                            </span>
+                          </div>
+                        </div>
+                        <div>
+                          <h3 style={{ 
+                            color: 'var(--dark-blue)', 
+                            fontWeight: 600, 
+                            marginBottom: 12 
+                          }}>
+                            Planning hebdomadaire
+                          </h3>
+                          <div style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: 8 
+                          }}>
+                            {formation.planning.length > 0 ? (
+                              formation.planning.map((seance, idx) => (
+                                <div key={idx} style={{ 
+                                  background: 'var(--light-gray)', 
+                                  borderRadius: 8, 
+                                  padding: '0.8rem', 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  gap: 12 
+                                }}>
+                                  <FiCalendar style={{ 
+                                    color: 'var(--light-blue)', 
+                                    fontSize: 16 
+                                  }} />
+                                  <span style={{ 
+                                    color: 'var(--dark-blue)', 
+                                    fontWeight: 500, 
+                                    minWidth: 70 
+                                  }}>
+                                    {seance.jour}
+                                  </span>
+                                  <FiClock style={{ 
+                                    color: 'var(--gold)', 
+                                    fontSize: 16 
+                                  }} />
+                                  <span style={{ 
+                                    color: 'var(--dark-blue)', 
+                                    minWidth: 80 
+                                  }}>
+                                    {seance.heure}
+                                  </span>
+                                  <FiMapPin style={{ 
+                                    color: 'var(--light-blue)', 
+                                    fontSize: 16 
+                                  }} />
+                                  <span style={{ 
+                                    color: 'var(--dark-blue)' 
+                                  }}>
+                                    {seance.salle}
+                                  </span>
+                                </div>
+                              ))
+                            ) : (
+                              <div style={{ 
                                 color: 'var(--light-blue)', 
-                                fontSize: 16 
-                              }} />
-                              <span style={{ 
-                                color: 'var(--dark-blue)', 
-                                fontWeight: 500, 
-                                minWidth: 70 
+                                fontSize: '0.9rem' 
                               }}>
-                                {seance.jour}
-                              </span>
-                              <FiClock style={{ 
-                                color: 'var(--gold)', 
-                                fontSize: 16 
-                              }} />
-                              <span style={{ 
-                                color: 'var(--dark-blue)', 
-                                minWidth: 80 
-                              }}>
-                                {seance.heure}
-                              </span>
-                              <FiMapPin style={{ 
-                                color: 'var(--light-blue)', 
-                                fontSize: 16 
-                              }} />
-                              <span style={{ 
-                                color: 'var(--dark-blue)' 
-                              }}>
-                                {seance.salle}
-                              </span>
-                            </div>
-                          ))}
+                                Aucun planning défini
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </main>
         </div>

@@ -5,40 +5,55 @@ namespace App\Http\Controllers;
 use App\Models\DemandeInscription;
 use App\Models\Formation;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class DemandeInscriptionController extends Controller
 {
     public function index()
     {
-        $demandes = DemandeInscription::with(['formation', 'user'])
-            ->orderByDesc('created_at')
-            ->get()
-            ->map(function ($demande) {
-                return [
-                    'id' => $demande->id,
-                    'utilisateur' => [
-                        'nom' => $demande->nom,
-                        'prenom' => $demande->prenom,
-                        'email' => $demande->email,
-                        'telephone' => $demande->telephone,
-                        'niveauEtude' => $demande->niveau,
-                    ],
-                    'formation' => $demande->formation ? [
-                        'id' => $demande->formation->id,
-                        'titre' => $demande->formation->titre,
-                        'description' => $demande->formation->description,
-                        'date_debut' => $demande->formation->date_debut,
-                        'date_fin' => $demande->formation->date_fin,
-                        'places_disponibles' => $demande->formation->places_disponibles,
-                        'places_reservees' => $demande->formation->places_reservees,
-                        'niveau_requis' => $demande->formation->niveau_requis,
-                    ] : null,
-                    'dateDemande' => $demande->created_at,
-                    'statut' => $demande->statut ?? 'En attente',
-                ];
-            });
+        $user = Auth::user();
+        $isCharge = $user->role === 'charge'; // Assuming 'role' field in user model
 
-        return response()->json($demandes);
+        if ($isCharge) {
+            $demandes = DemandeInscription::with(['formation', 'user'])
+                ->orderByDesc('created_at')
+                ->get();
+        } else {
+            $demandes = DemandeInscription::with(['formation', 'user'])
+                ->where('user_id', auth()->id())
+                ->orderByDesc('created_at')
+                ->get();
+        }
+
+        $mappedDemandes = $demandes->map(function ($demande) {
+            return [
+                'id' => $demande->id,
+                'utilisateur' => [
+                    'nom' => $demande->nom,
+                    'prenom' => $demande->prenom,
+                    'email' => $demande->email,
+                    'telephone' => $demande->telephone,
+                    'niveauEtude' => $demande->niveau,
+                ],
+                'formation' => $demande->formation ? [
+                    'id' => $demande->formation->id,
+                    'titre' => $demande->formation->titre,
+                    'description' => $demande->formation->description,
+                    'date_debut' => $demande->formation->date_debut,
+                    'date_fin' => $demande->formation->date_fin,
+                    'places_disponibles' => $demande->formation->places_disponibles,
+                    'places_reservees' => $demande->formation->places_reservees,
+                    'niveau_requis' => $demande->formation->niveau_requis,
+                ] : null,
+                'dateDemande' => $demande->created_at,
+                'statut' => $demande->statut ?? 'En attente',
+            ];
+        });
+
+        return response()->json([
+            'demandes' => $mappedDemandes,
+            'is_charge' => $isCharge
+        ]);
     }
 
     public function store(Request $request)

@@ -325,7 +325,7 @@ const TrainingManagementPage = () => {
   };
 
   const openPlanningPage = (formation) => {
-    navigate('/charge/planning', { state: { formation } });
+    navigate(`/charge/planning/${formation.id}`);
   };
 
   const filteredTrainings = trainings.filter((training) => {

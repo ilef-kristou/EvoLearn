@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { FiCalendar, FiClock, FiMapPin, FiUser, FiEdit2, FiTrash2, FiPlus, FiX } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiMapPin, FiUser, FiEdit2, FiTrash2, FiPlus, FiX, FiSend } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom'; // Added to access navigation state
+import { useParams, useNavigate } from 'react-router-dom';
 import './PlanningPage.css';
 import ChargeSidebar from './ChargeSidebar';
 
 const API_BASE = "http://localhost:8000/api";
 const JOURS_SEMAINE = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"];
 
+// Helper functions
 const normalizeTime = (time) => {
   if (!time) return "09:00";
   if (typeof time !== 'string') return "09:00";
@@ -20,44 +21,63 @@ const normalizeTime = (time) => {
   return "09:00";
 };
 
+const formatDate = (dateStr) => {
+  if (!dateStr) return '';
+  return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+};
+
+const timeToMinutes = (timeStr) => {
+  const [hours, minutes] = normalizeTime(timeStr).split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const doDateRangesOverlap = (start1, end1, start2, end2) => {
+  if (!start1 || !end1 || !start2 || !end2) return false;
+  const d1Start = new Date(start1).getTime();
+  const d1End = new Date(end1).getTime();
+  const d2Start = new Date(start2).getTime();
+  const d2End = new Date(end2).getTime();
+  if (isNaN(d1Start) || isNaN(d1End) || isNaN(d2Start) || isNaN(d2End)) return false;
+  return d1Start <= d2End && d2Start <= d1End;
+};
+
+// API service with auth
 const fetchApi = async (url, options = {}) => {
+  const token = localStorage.getItem('jwt');
+  
+  if (!token && !url.includes('/auth')) {
+    throw new Error('Authentication token missing');
+  }
+
+  const headers = {
+    'Accept': 'application/json',
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...(options.headers || {})
+  };
+
   try {
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        ...(options.headers || {})
-      },
+      headers
     });
 
+    if (response.status === 401) {
+      localStorage.removeItem('jwt');
+      window.location.href = '/login';
+      return;
+    }
+
     if (!response.ok) {
-      const contentType = response.headers.get('content-type') || '';
-      let errorText = `Erreur ${response.status}`;
-      try {
-        if (contentType.includes('application/json')) {
-          const errJson = await response.json();
-          errorText = errJson.message || JSON.stringify(errJson);
-        } else {
-          const txt = await response.text();
-          if (txt) errorText = txt;
-        }
-      } catch (e) {}
-      throw new Error(errorText);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
     }
 
     if (response.status === 204) return null;
-
-    const ct = response.headers.get('content-type') || '';
-    try {
-      if (ct.includes('application/json')) return await response.json();
-      return await response.text();
-    } catch (e) {
-      return null;
-    }
-  } catch (err) {
-    console.error("Network error:", err);
-    throw new Error("Problème de connexion au serveur");
+    return await response.json();
+  } catch (error) {
+    console.error('API call failed:', error);
+    throw error;
   }
 };
 
@@ -66,64 +86,84 @@ const PlanningPage = () => {
   const [formation, setFormation] = useState(null);
   const [sallesDisponibles, setSallesDisponibles] = useState([]);
   const [formateursDisponibles, setFormateursDisponibles] = useState([]);
-  const [seance, setSeance] = useState(null);
-  const [affectationStatut, setAffectationStatut] = useState('en_attente');
-  const [causeRefus, setCauseRefus] = useState('');
+  const [plannings, setPlannings] = useState([]);
+  const [allPlanningJours, setAllPlanningJours] = useState([]);
   const [modalOpen, setModalOpen] = useState(false);
   const [currentSeance, setCurrentSeance] = useState({
+    id: null,
     formateur_id: "",
     formateur_nom: "",
-    horaires: [],
-    couleur: "#e6b801",
+    formateur_prenom: "",
+    horaires: []
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [confirmation, setConfirmation] = useState(null);
 
-  // Get formation from navigation state
-  const location = useLocation();
-  const { formation: formationFromState } = location.state || {};
+  const { formationId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
+    const token = localStorage.getItem('jwt');
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
     const loadData = async () => {
       try {
         setLoading(true);
         setError(null);
 
-        if (!formationFromState?.id) {
-          throw new Error("Aucune formation sélectionnée");
+        if (!formationId) {
+          throw new Error("Aucun ID de formation fourni dans l'URL");
         }
 
-        const [formationData, sallesData, formateursData] = await Promise.all([
-          fetchApi(`${API_BASE}/formations/${formationFromState.id}`),
+        const [formationData, planningsData, salles, formateurs, planningJours] = await Promise.all([
+          fetchApi(`${API_BASE}/formations/${formationId}`),
+          fetchApi(`${API_BASE}/plannings/formation/${formationId}`),
           fetchApi(`${API_BASE}/salles`),
-          fetchApi(`${API_BASE}/formateurs/available`)
+          fetchApi(`${API_BASE}/formateurs/available`),
+          fetchApi(`${API_BASE}/planning-jours`)
         ]);
 
+        const enrichedPlannings = await Promise.all(
+          planningsData.map(async (planning) => {
+            const jours = await fetchApi(`${API_BASE}/planning-jours/planning/${planning.id}`);
+            return {
+              ...planning,
+              formateur_nom: formateurs.find(f => f.id === planning.formateur_id)?.nom || "Inconnu",
+              formateur_prenom: formateurs.find(f => f.id === planning.formateur_id)?.prenom || "Inconnu",
+              horaires: jours.map(j => ({
+                ...j,
+                heureDebut: normalizeTime(j.heure_debut),
+                heureFin: normalizeTime(j.heure_fin),
+                salle_id: j.salle_id
+              }))
+            };
+          })
+        );
+
+        const enrichedPlanningJours = await Promise.all(
+          planningJours.map(async (pj) => {
+            const planning = await fetchApi(`${API_BASE}/plannings/${pj.planning_id}`);
+            const formation = await fetchApi(`${API_BASE}/formations/${planning.formation_id}`);
+            return {
+              ...pj,
+              formation: {
+                id: formation.id,
+                date_debut: formation.date_debut,
+                date_fin: formation.date_fin
+              }
+            };
+          })
+        );
+
         setFormation(formationData);
-        setSallesDisponibles(sallesData);
-        setFormateursDisponibles(formateursData);
-
-        const plannings = await fetchApi(`${API_BASE}/plannings?formation_id=${formationFromState.id}`);
-
-        if (plannings && plannings.length > 0) {
-          const planning = plannings[0];
-          const jours = await fetchApi(`${API_BASE}/planning-jours/planning/${planning.id}`);
-
-          setAffectationStatut(planning.statut || 'en_attente');
-          setCauseRefus(planning.cause_refus || '');
-          setSeance({
-            ...planning,
-            formateur_nom: formateursData.find(f => f.id === planning.formateur_id)?.nom || "Inconnu",
-            horaires: jours,
-          });
-          setCurrentSeance({
-            formateur_id: planning.formateur_id,
-            formateur_nom: formateursData.find(f => f.id === planning.formateur_id)?.nom || "Inconnu",
-            horaires: jours,
-            couleur: planning.couleur || "#e6b801",
-            id: planning.id
-          });
-        }
+        setSallesDisponibles(salles);
+        setFormateursDisponibles(formateurs);
+        setPlannings(enrichedPlannings);
+        setAllPlanningJours(enrichedPlanningJours);
       } catch (err) {
         setError(err.message);
         console.error("Erreur de chargement:", err);
@@ -133,11 +173,40 @@ const PlanningPage = () => {
     };
 
     loadData();
-  }, [formationFromState]);
+  }, [formationId, navigate]);
 
-  const formatDate = (dateStr) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('fr-FR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const isSalleOccupied = (salleId, jour, heureDebut, heureFin, excludePlanningJourId = null) => {
+    const start = timeToMinutes(heureDebut);
+    const end = timeToMinutes(heureFin);
+    
+    return allPlanningJours.some(pj => {
+      if (pj.salle_id !== salleId || pj.jour !== jour) return false;
+      if (excludePlanningJourId && pj.id === excludePlanningJourId) return false;
+      
+      const pjStart = timeToMinutes(pj.heure_debut);
+      const pjEnd = timeToMinutes(pj.heure_fin);
+      
+      const isTimeOverlap = (
+        (start >= pjStart && start < pjEnd) ||
+        (end > pjStart && end <= pjEnd) ||
+        (start <= pjStart && end >= pjEnd)
+      );
+
+      if (!isTimeOverlap) return false;
+
+      const planningFormation = pj.formation;
+      if (!planningFormation || !planningFormation.date_debut || !planningFormation.date_fin) {
+        console.warn(`Formation data missing for planning_jour ${pj.id}`);
+        return false;
+      }
+
+      return doDateRangesOverlap(
+        formation.date_debut,
+        formation.date_fin,
+        planningFormation.date_debut,
+        planningFormation.date_fin
+      );
+    });
   };
 
   const updateHoraire = (index, field, value) => {
@@ -172,57 +241,50 @@ const PlanningPage = () => {
 
   const ajouterSeance = () => {
     setCurrentSeance({
+      id: null,
       formateur_id: "",
       formateur_nom: "",
+      formateur_prenom: "",
       horaires: [{
         jour: "Lundi",
         heureDebut: "09:00",
         heureFin: "12:00",
         salle_id: sallesDisponibles.length > 0 ? sallesDisponibles[0].id : null
-      }],
-      couleur: `hsl(${Math.random() * 360}, 75%, 60%)`
+      }]
     });
     setModalOpen(true);
   };
 
-  const editerSeance = () => {
-    if (seance) {
-      setCurrentSeance({
-        ...seance,
-        horaires: seance.horaires.map(j => ({
-          ...j,
-          heureDebut: normalizeTime(j.heure_debut || j.heureDebut),
-          heureFin: normalizeTime(j.heure_fin || j.heureFin)
-        })),
-      });
-      setModalOpen(true);
-    }
+  const editerSeance = (planning) => {
+    setCurrentSeance({
+      ...planning,
+      horaires: planning.horaires.map(j => ({
+        ...j,
+        heureDebut: normalizeTime(j.heure_debut || j.heureDebut),
+        heureFin: normalizeTime(j.heure_fin || j.heureFin),
+        id: j.id
+      }))
+    });
+    setModalOpen(true);
   };
 
-  const supprimerSeance = async () => {
-    if (!seance?.id) return;
-
+  const supprimerSeance = async (planningId) => {
     try {
-      if (seance.horaires && seance.horaires.length) {
+      const planning = plannings.find(p => p.id === planningId);
+      if (planning.horaires && planning.horaires.length) {
         await Promise.all(
-          seance.horaires.map(jour =>
+          planning.horaires.map(jour =>
             fetchApi(`${API_BASE}/planning-jours/${jour.id}`, { method: 'DELETE' })
           )
         );
       }
 
-      await fetchApi(`${API_BASE}/plannings/${seance.id}`, { method: 'DELETE' });
+      await fetchApi(`${API_BASE}/plannings/${planningId}`, { method: 'DELETE' });
 
-      setSeance(null);
-      setAffectationStatut('en_attente');
-      setCauseRefus('');
-      setCurrentSeance({
-        formateur_id: "",
-        formateur_nom: "",
-        horaires: [],
-        couleur: "#e6b801",
-      });
-      setModalOpen(false);
+      setPlannings(plannings.filter(p => p.id !== planningId));
+      setAllPlanningJours(allPlanningJours.filter(pj => pj.planning_id !== planningId));
+      setConfirmation({ type: 'success', message: 'Séance supprimée avec succès' });
+      setTimeout(() => setConfirmation(null), 3000);
     } catch (err) {
       setError(err.message);
       console.error("Erreur de suppression:", err);
@@ -232,6 +294,7 @@ const PlanningPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setConfirmation(null);
 
     if (!currentSeance.formateur_id) {
       setError("Veuillez sélectionner un formateur");
@@ -248,13 +311,22 @@ const PlanningPage = () => {
         setError("Veuillez vérifier les horaires et jours");
         return;
       }
+      if (horaire.salle_id && isSalleOccupied(
+        horaire.salle_id,
+        horaire.jour,
+        horaire.heureDebut,
+        horaire.heureFin,
+        horaire.id
+      )) {
+        setError(`La salle ${sallesDisponibles.find(s => s.id === horaire.salle_id)?.nom} est déjà réservée pour ${horaire.jour} de ${horaire.heureDebut} à ${horaire.heureFin}`);
+        return;
+      }
     }
 
     try {
       const planningData = {
-        formation_id: formationFromState.id, // Use dynamic formation ID
+        formation_id: formationId,
         formateur_id: currentSeance.formateur_id,
-        couleur: currentSeance.couleur,
         statut: 'en_attente',
         cause_refus: null
       };
@@ -266,6 +338,13 @@ const PlanningPage = () => {
           body: JSON.stringify(planningData)
         });
         planningId = currentSeance.id;
+
+        const existingJours = await fetchApi(`${API_BASE}/planning-jours/planning/${planningId}`);
+        await Promise.all(
+          existingJours.map(jour =>
+            fetchApi(`${API_BASE}/planning-jours/${jour.id}`, { method: 'DELETE' })
+          )
+        );
       } else {
         const newPlanning = await fetchApi(`${API_BASE}/plannings`, {
           method: 'POST',
@@ -275,47 +354,60 @@ const PlanningPage = () => {
       }
 
       await Promise.all(
-        currentSeance.horaires.map(horaire => {
+        currentSeance.horaires.map(async (horaire) => {
           const jourData = {
             jour: horaire.jour,
             heure_debut: normalizeTime(horaire.heureDebut),
             heure_fin: normalizeTime(horaire.heureFin),
-            salle_id: horaire.salle_id || sallesDisponibles[0]?.id
+            salle_id: horaire.salle_id || sallesDisponibles[0]?.id,
+            planning_id: planningId
           };
 
-          if (horaire.id) {
-            return fetchApi(`${API_BASE}/planning-jours/${horaire.id}`, {
-              method: 'PUT',
-              body: JSON.stringify(jourData)
-            });
-          } else {
-            return fetchApi(`${API_BASE}/planning-jours`, {
-              method: 'POST',
-              body: JSON.stringify({ 
-                planning_id: planningId, 
-                ...jourData 
-              })
-            });
-          }
+          return await fetchApi(`${API_BASE}/planning-jours`, {
+            method: 'POST',
+            body: JSON.stringify(jourData)
+          });
         })
       );
 
-      const updatedPlanning = await fetchApi(`${API_BASE}/plannings?formation_id=${formationFromState.id}`);
-      if (updatedPlanning && updatedPlanning.length > 0) {
-        const planning = updatedPlanning[0];
-        const jours = await fetchApi(`${API_BASE}/planning-jours/planning/${planning.id}`);
-        
-        setSeance({
-          ...planning,
-          formateur_nom: formateursDisponibles.find(f => f.id === planning.formateur_id)?.nom || "Inconnu",
-          horaires: jours,
-        });
-        
-        setAffectationStatut(planning.statut || 'en_attente');
-        setCauseRefus(planning.cause_refus || '');
-      }
+      const updatedPlannings = await fetchApi(`${API_BASE}/plannings/formation/${formationId}`);
+      const enrichedPlannings = await Promise.all(
+        updatedPlannings.map(async (planning) => {
+          const jours = await fetchApi(`${API_BASE}/planning-jours/planning/${planning.id}`);
+          return {
+            ...planning,
+            formateur_nom: formateursDisponibles.find(f => f.id === planning.formateur_id)?.nom || "Inconnu",
+            formateur_prenom: formateursDisponibles.find(f => f.id === planning.formateur_id)?.prenom || "Inconnu",
+            horaires: jours.map(j => ({
+              ...j,
+              heureDebut: normalizeTime(j.heure_debut),
+              heureFin: normalizeTime(j.heure_fin),
+              salle_id: j.salle_id
+            }))
+          };
+        })
+      );
 
+      const updatedPlanningJours = await Promise.all(
+        (await fetchApi(`${API_BASE}/planning-jours`)).map(async (pj) => {
+          const planning = await fetchApi(`${API_BASE}/plannings/${pj.planning_id}`);
+          const formation = await fetchApi(`${API_BASE}/formations/${planning.formation_id}`);
+          return {
+            ...pj,
+            formation: {
+              id: formation.id,
+              date_debut: formation.date_debut,
+              date_fin: formation.date_fin
+            }
+          };
+        })
+      );
+
+      setPlannings(enrichedPlannings);
+      setAllPlanningJours(updatedPlanningJours);
       setModalOpen(false);
+      setConfirmation({ type: 'success', message: `Demande envoyée au formateur ${currentSeance.formateur_nom} pour validation` });
+      setTimeout(() => setConfirmation(null), 3000);
     } catch (err) {
       setError("Erreur lors de l'enregistrement : " + err.message);
     }
@@ -339,7 +431,7 @@ const PlanningPage = () => {
         <main className="main-content">
           <div className="error-message">
             <p>Erreur: {error}</p>
-            <button onClick={() => window.location.reload()}>Réessayer</button>
+            <button onClick={() => navigate('/charge')}>Retour à la liste des formations</button>
           </div>
         </main>
       </div>
@@ -350,6 +442,18 @@ const PlanningPage = () => {
     <div className={`planning-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <ChargeSidebar onToggle={setIsSidebarCollapsed} />
       <main className="main-content">
+        {confirmation && (
+          <motion.div
+            className={`confirmation ${confirmation.type}`}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <FiSend className="confirmation-icon" />
+            {confirmation.message}
+          </motion.div>
+        )}
         {formation && (
           <>
             <motion.header
@@ -396,29 +500,27 @@ const PlanningPage = () => {
                           Du {formatDate(formation.date_debut)} au {formatDate(formation.date_fin)}
                         </span>
                       </motion.div>
-                      {!seance && (
-                        <motion.button
-                          className="add-button"
-                          onClick={ajouterSeance}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.4 }}
-                          whileHover={{
-                            scale: 1.05,
-                            boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
-                          }}
-                          whileTap={{ scale: 0.95 }}
-                        >
-                          <FiPlus /> Ajouter une séance
-                        </motion.button>
-                      )}
+                      <motion.button
+                        className="add-button"
+                        onClick={ajouterSeance}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        whileHover={{
+                          scale: 1.05,
+                          boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
+                        }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <FiPlus /> Ajouter une séance
+                      </motion.button>
                     </div>
                   </div>
                 </div>
               </div>
             </motion.header>
 
-            {!seance || !seance.horaires.length ? (
+            {plannings.length === 0 ? (
               <motion.div
                 className="empty-state"
                 initial={{ opacity: 0 }}
@@ -436,137 +538,82 @@ const PlanningPage = () => {
                 </motion.button>
               </motion.div>
             ) : (
-              <motion.div
-                className="seance-card"
-                style={{
-                  width: '100%',
-                  maxWidth: '100%',
-                  margin: '0 auto',
-                  position: 'relative',
-                  borderTop: `4px solid ${seance.couleur || '#e6b801'}`,
-                  boxShadow: `0 4px 20px ${seance.couleur || '#e6b801'}20`
-                }}
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.98 }}
-                transition={{ duration: 0.3 }}
-              >
-                <motion.button
-                  className="edit-btn"
-                  style={{
-                    position: 'absolute',
-                    top: 18,
-                    right: 60, // Adjusted to make room for delete button
-                    zIndex: 2,
-                    background: 'white',
-                    borderRadius: '50%',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-                    padding: 10,
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onClick={editerSeance}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <FiEdit2 size={22} />
-                </motion.button>
-                <motion.button
-                  className="delete-btn"
-                  style={{
-                    position: 'absolute',
-                    top: 18,
-                    right: 18,
-                    zIndex: 2,
-                    background: 'white',
-                    borderRadius: '50%',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
-                    padding: 10,
-                    border: 'none',
-                    cursor: 'pointer'
-                  }}
-                  onClick={supprimerSeance}
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                >
-                  <FiTrash2 size={22} color="#EF4444" />
-                </motion.button>
-                <div className="seance-content" style={{ paddingTop: 32 }}>
-                  <div className="seance-meta">
-                    <div className="meta-item">
-                      <FiUser className="icon" />
-                      <span>
-                        {seance.formateur_nom}
-                        <span className={`statut-badge ${affectationStatut}`}>
-                          ({affectationStatut === 'en_attente' ? 'en attente' : affectationStatut === 'accepte' ? 'accepté' : 'refusé'})
-                        </span>
-                      </span>
-                    </div>
-                    {affectationStatut === 'refuse' && causeRefus && (
-                      <div className="meta-item cause-refus">
-                        <span>Cause du refus : <span style={{ color: '#EF4444', fontWeight: 600 }}>{causeRefus}</span></span>
-                      </div>
-                    )}
-                    <div className="meta-item">
-                      <FiCalendar className="icon" />
-                      <span>Du {formatDate(formation.date_debut)} au {formatDate(formation.date_fin)}</span>
-                    </div>
-                  </div>
-                  <div className="horaires-list" style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    flexWrap: 'nowrap',
-                    gap: '0.9rem',
-                    alignItems: 'stretch',
-                    overflowX: 'auto'
-                  }}>
-                    {seance.horaires.map((horaire, index) => (
-                      <div
-                        key={index}
-                        className="jour-item"
-                        style={{
-                          background: '#f7f7f7',
-                          borderRadius: 8,
-                          padding: '0.7rem 1rem',
-                          minWidth: 240,
-                          flex: '0 0 140px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'flex-start',
-                          justifyContent: 'center'
-                        }}
-                      >
-                        <div className="jour-header" style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.8rem',
-                          marginBottom: '0.5rem'
-                        }}>
-                          <FiClock className="icon" />
-                          <span className="jour-name">{horaire.jour}</span>
+              <div className="plannings-list">
+                {plannings.map((planning) => (
+                  <motion.div
+                    key={planning.id}
+                    className="seance-card"
+                    style={{
+                      borderTop: '4px solid #e6b801',
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                    }}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <motion.button
+                      className="edit-btn"
+                      onClick={() => editerSeance(planning)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <FiEdit2 size={22} />
+                    </motion.button>
+                    <motion.button
+                      className="delete-btn"
+                      onClick={() => supprimerSeance(planning.id)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.9 }}
+                    >
+                      <FiTrash2 size={22} color="#EF4444" />
+                    </motion.button>
+                    <div className="seance-content">
+                      <div className="seance-meta">
+                        <div className="meta-item">
+                          <FiUser className="icon" />
+                          <span>
+                            {planning.formateur_nom} {planning.formateur_prenom}
+                            <span className={`statut-badge ${planning.statut}`}>
+                              ({planning.statut === 'en_attente' ? 'en attente' : planning.statut === 'accepte' ? 'accepté' : 'refusé'})
+                            </span>
+                          </span>
                         </div>
-                        <div className="jour-details" style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '1rem',
-                          fontSize: '0.9rem',
-                          marginLeft: '1.8rem'
-                        }}>
-                          <span>{normalizeTime(horaire.heure_debut || horaire.heureDebut)} - {normalizeTime(horaire.heure_fin || horaire.heureFin)}</span>
-                          <div className="salle-info" style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.5rem'
-                          }}>
-                            <FiMapPin className="icon" />
-                            <span>{sallesDisponibles.find(s => s.id === (horaire.salle_id || 0))?.nom || 'Salle inconnue'}</span>
+                        {planning.statut === 'refuse' && planning.cause_refus && (
+                          <div className="meta-item cause-refus">
+                            <span>Cause du refus : <span style={{ color: '#EF4444', fontWeight: 600 }}>{planning.cause_refus}</span></span>
                           </div>
+                        )}
+                        <div className="meta-item">
+                          <FiCalendar className="icon" />
+                          <span>Du {formatDate(formation.date_debut)} au {formatDate(formation.date_fin)}</span>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </div>
-              </motion.div>
+                      <div className="horaires-list">
+                        {planning.horaires.map((horaire, index) => (
+                          <div key={index} className="jour-item">
+                            <div className="jour-header">
+                              <FiClock className="icon" />
+                              <span className="jour-name">{horaire.jour}</span>
+                            </div>
+                            <div className="jour-details">
+                              <span>{normalizeTime(horaire.heure_debut || horaire.heureDebut)} - {normalizeTime(horaire.heure_fin || horaire.heureFin)}</span>
+                              <div className="salle-info">
+                                <FiMapPin className="icon" />
+                                <span>
+                                  {sallesDisponibles.find(s => s.id === (horaire.salle_id || 0)) 
+                                    ? `${sallesDisponibles.find(s => s.id === (horaire.salle_id || 0)).nom} (${sallesDisponibles.find(s => s.id === (horaire.salle_id || 0)).capacite || 0})` 
+                                    : 'Salle inconnue'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
             )}
 
             <AnimatePresence>
@@ -608,7 +655,8 @@ const PlanningPage = () => {
                             setCurrentSeance({
                               ...currentSeance,
                               formateur_id: e.target.value,
-                              formateur_nom: selectedFormateur?.nom || ""
+                              formateur_nom: selectedFormateur?.nom || "",
+                              formateur_prenom: selectedFormateur?.prenom || ""
                             });
                           }}
                           required
@@ -616,7 +664,7 @@ const PlanningPage = () => {
                           <option value="">Sélectionner un formateur</option>
                           {formateursDisponibles.map((formateur) => (
                             <option key={formateur.id} value={formateur.id}>
-                              {formateur.nom}
+                              {formateur.nom} {formateur.prenom}
                             </option>
                           ))}
                         </select>
@@ -668,8 +716,18 @@ const PlanningPage = () => {
                               >
                                 <option value="">Sélectionner une salle</option>
                                 {sallesDisponibles.map(salle => (
-                                  <option key={salle.id} value={salle.id}>
-                                    {salle.nom}
+                                  <option
+                                    key={salle.id}
+                                    value={salle.id}
+                                    disabled={isSalleOccupied(
+                                      salle.id,
+                                      horaire.jour,
+                                      horaire.heureDebut,
+                                      horaire.heureFin,
+                                      horaire.id
+                                    )}
+                                  >
+                                    {salle.nom} (capacité {salle.capacite || 0})
                                   </option>
                                 ))}
                               </select>
@@ -706,7 +764,7 @@ const PlanningPage = () => {
                           type="submit"
                           className="submit-btn"
                         >
-                          Enregistrer
+                          Enregistrer et envoyer la demande
                         </button>
                       </div>
                     </form>

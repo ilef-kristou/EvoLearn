@@ -1,85 +1,83 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { FiBook, FiCalendar, FiArrowLeft, FiX } from 'react-icons/fi';
 import Header from './Components/Header';
 import Footer from './Components/Footer';
 
-const formations = [
-  {
-    id: 1,
-    titre: "React Avancé",
-    description: "Maîtrisez les hooks, context API et les performances React. Cette formation avancée vous permettra de concevoir des applications performantes, maintenables et modernes avec React. Vous apprendrez à gérer l'état, optimiser le rendu, utiliser les hooks personnalisés, et bien plus encore.Maîtrisez les hooks, context API et les performances React. Cette formation avancée vous permettra de concevoir des applications performantes, maintenables et modernes avec React. Vous apprendrez à gérer l'état, optimiser le rendu, utiliser les hooks personnalisés, et bien plus encore.Maîtrisez les hooks, context API et les performances React. Cette formation avancée vous permettra de concevoir des applications performantes, maintenables et modernes avec React. Vous apprendrez à gérer l'état, optimiser le rendu, utiliser les hooks personnalisés, et bien plus encore.",
-    duree: "6 semaines",
-    categorie: "Développement Web",
-    couleur: "#2C3E50",
-    image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-  },
-  {
-    id: 2,
-    titre: "UX/UI Design",
-    description: "Apprenez à créer des interfaces utilisateur intuitives. Cette formation vous initiera aux principes fondamentaux de l'expérience utilisateur et du design d'interface, avec des ateliers pratiques et des études de cas réels.",
-    duree: "8 semaines",
-    categorie: "Design",
-    couleur: "#2C3E50",
-    image: "https://images.unsplash.com/photo-1541462608143-67571c6738dd?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-  },
-  {
-    id: 3,
-    titre: "Data Science",
-    description: "Introduction au machine learning et à l'analyse de données. Découvrez les bases de la data science, la manipulation de données, la visualisation, et les premiers algorithmes de machine learning.",
-    duree: "10 semaines",
-    categorie: "Data",
-    couleur: "#2C3E50",
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-  },
-  {
-    id: 4,
-    titre: "React Avancé",
-    description: "Maîtrisez les hooks, context API et les performances React. Cette formation avancée vous permettra de concevoir des applications performantes, maintenables et modernes avec React. Vous apprendrez à gérer l'état, optimiser le rendu, utiliser les hooks personnalisés, et bien plus encore.",
-    duree: "6 semaines",
-    categorie: "Développement Web",
-    couleur: "#2C3E50",
-    image: "https://images.unsplash.com/photo-1633356122544-f134324a6cee?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-  },
-  {
-    id: 5,
-    titre: "UX/UI Design",
-    description: "Apprenez à créer des interfaces utilisateur intuitives. Cette formation vous initiera aux principes fondamentaux de l'expérience utilisateur et du design d'interface, avec des ateliers pratiques et des études de cas réels.",
-    duree: "8 semaines",
-    categorie: "Design",
-    couleur: "#2C3E50",
-    image: "https://images.unsplash.com/photo-1541462608143-67571c6738dd?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-  },
-  {
-    id: 6,
-    titre: "Data Science",
-    description: "Introduction au machine learning et à l'analyse de données. Découvrez les bases de la data science, la manipulation de données, la visualisation, et les premiers algorithmes de machine learning.",
-    duree: "10 semaines",
-    categorie: "Data",
-    couleur: "#2C3E50",
-    image: "https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60"
-  }
-];
+const API_BASE = "http://localhost:8000/api";
 
 const FormationDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const formation = formations.find(f => f.id === Number(id));
+  const [formation, setFormation] = useState(null);
   const [showInscriptionForm, setShowInscriptionForm] = useState(false);
   const [formData, setFormData] = useState({
     nom: '',
     prenom: '',
     email: '',
     niveau: '',
-    formation: formation?.titre || ''
+    formation: ''
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const token = localStorage.getItem('jwt');
 
-  if (!formation) return <div style={{ color: '#2C3E50', textAlign: 'center', marginTop: 80 }}>Formation introuvable.</div>;
+  useEffect(() => {
+    const fetchFormation = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-  // Dates fictives si non présentes dans l'objet formation
-  const dateDebut = formation.dateDebut || '2024-06-01';
-  const dateFin = formation.dateFin || '2024-07-15';
-  const niveauRequis = formation.niveauRequis || 'Baccalauréat';
+        if (!id) {
+          throw new Error("Aucun ID de formation fourni");
+        }
+
+        const response = await fetch(`${API_BASE}/formations/${id}`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        }
+
+        const data = await response.json();
+        
+        setFormation({
+          titre: data.titre || 'Formation inconnue',
+          description: data.description || 'Aucune description disponible',
+          duree: data.duree || 'Durée inconnue',
+          categorie: data.categorie || 'Catégorie inconnue',
+          image: data.image || 'https://images.unsplash.com/photo-1633356122544-f134324a6cee?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60',
+          dateDebut: data.date_debut || '2024-06-01',
+          dateFin: data.date_fin || '2024-07-15',
+          niveauRequis: data.niveau_requis || 'Baccalauréat'
+        });
+        
+      } catch (err) {
+        setError(err.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFormation();
+  }, [id, token]);
+
+  if (loading) {
+    return <div style={{ textAlign: 'center', marginTop: 100 }}>Chargement en cours...</div>;
+  }
+
+  if (error) {
+    return <div style={{ textAlign: 'center', marginTop: 100, color: '#EF4444' }}>Erreur: {error}</div>;
+  }
+
+  if (!formation) {
+    return <div style={{ color: '#2C3E50', textAlign: 'center', marginTop: 80 }}>Formation introuvable.</div>;
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -114,7 +112,7 @@ const FormationDetails = () => {
 
   return (
     <>
- 
+    
       <div style={{ minHeight: '100vh', background: '#fff', padding: '0 0 4rem 0' }}>
         <div style={{
           position: 'relative',
@@ -187,12 +185,12 @@ const FormationDetails = () => {
               <FiBook style={{ color: '#F1C40F' }} /> {formation.categorie}
             </span>
             <span style={{ color: '#2C3E50', fontWeight: 600, fontSize: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <FiCalendar style={{ color: '#F1C40F' }} /> {`Du ${dateDebut} au ${dateFin}`}
+              <FiCalendar style={{ color: '#F1C40F' }} /> {`Du ${formation.dateDebut} au ${formation.dateFin}`}
             </span>
             <span style={{ color: '#2C3E50', fontWeight: 600, fontSize: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="#F1C40F">
                 <path d="M12 3L1 9l11 6 9-4.91V17h2V9M5 13.18v4L12 21l7-3.82v-4L12 17l-7-3.82z"/>
-              </svg> Niveau requis: {niveauRequis}
+              </svg> Niveau requis: {formation.niveauRequis}
             </span>
           </div>
           {!showInscriptionForm && (
@@ -245,7 +243,7 @@ const FormationDetails = () => {
                   </label>
                   <input
                     type="text"
-                    value={formData.formation}
+                    value={formation.titre}
                     disabled
                     style={{
                       width: '100%',
@@ -394,4 +392,4 @@ const FormationDetails = () => {
   );
 };
 
-export default FormationDetails; 
+export default FormationDetails;
