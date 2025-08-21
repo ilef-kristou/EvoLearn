@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Planning extends Model
 {
+    use HasFactory;
+
     protected $fillable = ['formation_id', 'formateur_id'];
 
     public function formation()

@@ -18,11 +18,17 @@ class Formation extends Model
         'places_reservees',
         'statut',
         'image',
-        'niveau_requis'
+        'niveau_requis',
+        'categorie'
     ];
+
+    public function planning()
+    {
+        return $this->hasOne(Planning::class);
+    }
 
     public function demandes()
     {
         return $this->hasMany(DemandeInscription::class);
     }
-} 
+}

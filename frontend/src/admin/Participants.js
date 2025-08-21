@@ -1,82 +1,19 @@
-import React, { useState } from 'react';
-import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiPhone, FiMapPin, FiBook, FiSearch, FiChevronLeft, FiChevronRight, FiChevronDown } from 'react-icons/fi';
+import React, { useState, useEffect } from 'react';
+import { FiPlus, FiEdit2, FiTrash2, FiX, FiUser, FiMail, FiPhone, FiSearch, FiChevronLeft, FiChevronRight, FiRefreshCw } from 'react-icons/fi';
 import AdminSidebar from './AdminSidebar';
 import './Participants.css';
 import pdp from '../assets/images/pdp.webp';
 
+const API_BASE = 'http://localhost:8000';
+
 const Participants = () => {
-  // Données initiales des participants
-  const [participants, setParticipants] = useState([
-    { 
-      id: 1, 
-      nom: 'Dupont', 
-      prenom: 'Jean', 
-      email: 'jean.dupont@example.com', 
-      telephone: '0612345678',
-      adresse: '12 Rue de la République, Paris',
-      niveauEtude: 'Licence',
-      formation:'React',
-      image: pdp
-    },
-    { 
-      id: 2, 
-      nom: 'Martin', 
-      prenom: 'Sophie', 
-      email: 'sophie.martin@example.com', 
-      telephone: '0698765432',
-      adresse: '24 Avenue des Champs-Élysées, Paris',
-      niveauEtude: 'Master',
-      formation:'Angular',
-      image: pdp
-    },
-    { 
-      id: 3, 
-      nom: 'Bernard', 
-      prenom: 'Pierre', 
-      email: 'pierre.bernard@example.com', 
-      telephone: '0687654321',
-      adresse: '5 Rue du Commerce, Lyon',
-      niveauEtude: 'Doctorat',
-      formation:'Business Intelligence',
-      image: pdp
-    },
-    { 
-      id: 4, 
-      nom: 'Petit', 
-      prenom: 'Marie', 
-      email: 'marie.petit@example.com', 
-      telephone: '0678945612',
-      adresse: '8 Boulevard Voltaire, Marseille',
-      niveauEtude: 'Baccalauréat',
-      image: pdp
-    },
-    { 
-      id: 5, 
-      nom: 'Leroy', 
-      prenom: 'Thomas', 
-      email: 'thomas.leroy@example.com', 
-      telephone: '0632145698',
-      adresse: '15 Rue de la Paix, Lille',
-      niveauEtude: 'Master',
-      image: pdp
-    },
-    { 
-      id: 6, 
-      nom: 'Moreau', 
-      prenom: 'Julie', 
-      email: 'julie.moreau@example.com', 
-      telephone: '0698745632',
-      adresse: '3 Avenue Foch, Bordeaux',
-      niveauEtude: 'Licence',
-      image: pdp
-    }
-  ]);
-
-  // États pour la pagination
+  const [participants, setParticipants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(4); // Nombre d'éléments par page
-
-  // États pour les popups
+  const [itemsPerPage] = useState(4);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
   const [showPopup, setShowPopup] = useState(false);
   const [showEditPopup, setShowEditPopup] = useState(false);
   const [currentParticipant, setCurrentParticipant] = useState(null);
@@ -85,64 +22,87 @@ const Participants = () => {
     prenom: '',
     email: '',
     telephone: '',
-    adresse: '',
-    niveauEtude: '',
-    formation:'',
-    image: pdp
+    image: null
   });
-
-  // États pour les filtres et recherche
-  const [filtreNiveauEtude, setFiltreNiveauEtude] = useState('Tous');
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Options pour les niveaux d'étude
-  const niveauxEtude = ['Tous', 'Baccalauréat', 'Licence', 'Master', 'Doctorat'];
+  const fetchParticipants = async (page = 1, search = '') => {
+    try {
+      setLoading(true);
+      setError(null);
 
-  // Filtrer les participants
-  const participantsFiltres = participants.filter(participant => {
-    const matchesNiveauEtude = filtreNiveauEtude === 'Tous' || participant.niveauEtude === filtreNiveauEtude;
-    const matchesSearch = searchTerm === '' || 
-      participant.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
-      participant.prenom.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      participant.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      participant.telephone.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      participant.adresse.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      participant.niveauEtude.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      participant.formation.toLowerCase().includes(searchTerm.toLowerCase());
-    return matchesNiveauEtude && matchesSearch;
-  });
+      const params = new URLSearchParams({
+        page: page,
+        perPage: itemsPerPage,
+        search: search
+      });
 
-  // Logique de pagination
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = participantsFiltres.slice(indexOfFirstItem, indexOfLastItem);
-  const totalPages = Math.ceil(participantsFiltres.length / itemsPerPage);
+      console.log('Fetching participants from:', `${API_BASE}/api/admin/participants?${params}`);
 
-  const paginate = (pageNumber) => setCurrentPage(pageNumber);
+      const response = await fetch(`${API_BASE}/api/admin/participants?${params}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
 
-  // Gestion des filtres
-  const toggleDropdown = () => setIsDropdownOpen(!isDropdownOpen);
-  const selectNiveauEtude = (niveau) => {
-    setFiltreNiveauEtude(niveau);
-    setIsDropdownOpen(false);
-    setCurrentPage(1); // Réinitialiser à la première page
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response:', text.slice(0, 200));
+          throw new Error(`Réponse inattendue du serveur (non JSON, statut ${response.status})`);
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erreur HTTP: ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.slice(0, 200));
+        throw new Error(`Réponse inattendue du serveur (non JSON, statut ${response.status})`);
+      }
+
+      const data = await response.json();
+
+      if (data.success) {
+        setParticipants(data.data || []);
+        setCurrentPage(data.pagination?.current_page || 1);
+        setTotalPages(data.pagination?.last_page || 1);
+        setTotalItems(data.pagination?.total || 0);
+      } else {
+        throw new Error(data.message || 'Erreur inconnue');
+      }
+    } catch (error) {
+      console.error('Erreur récupération participants:', error);
+      setError(error.message || 'Erreur lors de la récupération des participants');
+      setParticipants([]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  // Gestion des formulaires
+  useEffect(() => {
+    fetchParticipants(currentPage, searchTerm);
+  }, [currentPage, searchTerm]);
+
   const handleAddClick = () => {
     setNewParticipant({
       nom: '',
       prenom: '',
       email: '',
       telephone: '',
-      adresse: '',
-      niveauEtude: '',
-      formation:'',
-      image: pdp
+      image: null
     });
     setShowPopup(true);
     setShowEditPopup(false);
+    setError(null);
   };
 
   const handleEditClick = (participant) => {
@@ -152,13 +112,11 @@ const Participants = () => {
       prenom: participant.prenom,
       email: participant.email,
       telephone: participant.telephone,
-      adresse: participant.adresse,
-      niveauEtude: participant.niveauEtude,
-      formation:participant.formation,
-      image: participant.image || pdp
+      image: participant.image
     });
     setShowEditPopup(true);
     setShowPopup(false);
+    setError(null);
   };
 
   const closePopup = () => {
@@ -169,11 +127,9 @@ const Participants = () => {
       prenom: '',
       email: '',
       telephone: '',
-      adresse: '',
-      niveauEtude: '',
-      formation:'',
-      image: pdp
+      image: null
     });
+    setError(null);
   };
 
   const handleInputChange = (e) => {
@@ -181,34 +137,145 @@ const Participants = () => {
     setNewParticipant(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (showPopup) {
-      // Ajout d'un nouveau participant
-      const newId = participants.length > 0 ? Math.max(...participants.map(p => p.id)) + 1 : 1;
-      setParticipants([
-        ...participants,
-        {
-          id: newId,
-          ...newParticipant,
-          image: newParticipant.image || pdp // si jamais image est vide/null, on met pdp
-        }
-      ]);
-    } else if (showEditPopup) {
-      // Modification d'un participant existant
-      setParticipants(participants.map(p => 
-        p.id === currentParticipant.id ? { ...p, ...newParticipant } : p
-      ));
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewParticipant(prev => ({ ...prev, image: file }));
     }
-    closePopup();
   };
 
-  const handleDelete = (id) => {
-    setParticipants(participants.filter(p => p.id !== id));
-    // Si on supprime le dernier élément de la page, revenir à la page précédente
-    if (currentItems.length === 1 && currentPage > 1) {
-      setCurrentPage(currentPage - 1);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      Object.keys(newParticipant).forEach(key => {
+        if (newParticipant[key] !== null && newParticipant[key] !== undefined) {
+          formData.append(key, newParticipant[key]);
+        }
+      });
+
+      let url, method;
+      if (showPopup) {
+        url = `${API_BASE}/api/admin/participants`;
+        method = 'POST';
+      } else {
+        url = `${API_BASE}/api/admin/participants/${currentParticipant.id}`;
+        method = 'PUT';
+      }
+
+      console.log('Submitting to:', url, 'Method:', method);
+
+      const response = await fetch(url, {
+        method: method,
+        body: formData,
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response:', text.slice(0, 200));
+          throw new Error(`Réponse inattendue du serveur (non JSON, statut ${response.status})`);
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erreur ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.slice(0, 200));
+        throw new Error(`Réponse inattendue du serveur (non JSON, statut ${response.status})`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || `Erreur ${response.status}`);
+      }
+
+      fetchParticipants(currentPage, searchTerm);
+      closePopup();
+    } catch (error) {
+      console.error('Erreur soumission formulaire:', error);
+      setError(error.message || 'Erreur lors de la soumission du formulaire');
+    } finally {
+      setIsSubmitting(false);
     }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer ce participant ?')) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE}/api/admin/participants/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest'
+        }
+      });
+
+      console.log('Delete response status:', response.status);
+      console.log('Delete response headers:', Object.fromEntries(response.headers.entries()));
+
+      if (!response.ok) {
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await response.text();
+          console.error('Non-JSON response:', text.slice(0, 200));
+          throw new Error(`Réponse inattendue du serveur (non JSON, statut ${response.status})`);
+        }
+        const errorData = await response.json();
+        throw new Error(errorData.message || `Erreur ${response.status}`);
+      }
+
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const text = await response.text();
+        console.error('Non-JSON response:', text.slice(0, 200));
+        throw new Error(`Réponse inattendue du serveur (non JSON, statut ${response.status})`);
+      }
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.message || `Erreur ${response.status}`);
+      }
+
+      fetchParticipants(currentPage, searchTerm);
+    } catch (error) {
+      console.error('Erreur suppression:', error);
+      setError(error.message || 'Erreur lors de la suppression');
+    }
+  };
+
+  const paginate = (pageNumber) => {
+    if (pageNumber >= 1 && pageNumber <= totalPages) {
+      setCurrentPage(pageNumber);
+    }
+  };
+
+  const refreshData = () => {
+    fetchParticipants(currentPage, searchTerm);
+  };
+
+  const getImageUrl = (imagePath) => {
+    if (!imagePath) return pdp;
+    if (imagePath instanceof File) return URL.createObjectURL(imagePath);
+    if (imagePath.startsWith('http')) return imagePath;
+    return `${API_BASE}/storage/${imagePath}`;
   };
 
   return (
@@ -217,9 +284,9 @@ const Participants = () => {
       
       <main className="content-with-sidebar">
         <div className="participants-page">
-          {/* Nouvelle structure pour le header */}
           <div className="participants-header">
             <h1 className="page-title">Gestion des Participants</h1>
+            
             <div className="header-controls">
               <div className="search-bar-container">
                 <FiSearch className="search-icon" />
@@ -232,130 +299,122 @@ const Participants = () => {
                 />
               </div>
               
-              <div className="custom-filtre-container">
-                <div 
-                  className="filtre-select"
-                  onClick={toggleDropdown}
-                >
-                  <span>{filtreNiveauEtude}</span>
-                  <FiChevronDown className={`chevron-icon ${isDropdownOpen ? 'open' : ''}`} />
-                </div>
-                
-                {isDropdownOpen && (
-                  <div className="filtre-dropdown">
-                    {niveauxEtude.map((niveau) => (
-                      <div
-                        key={niveau}
-                        className={`dropdown-item ${filtreNiveauEtude === niveau ? 'selected' : ''}`}
-                        onClick={() => selectNiveauEtude(niveau)}
-                      >
-                        {niveau}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <button className="refresh-button" onClick={refreshData} title="Actualiser">
+                <FiRefreshCw />
+              </button>
               
-              
+              <button className="add-button" onClick={handleAddClick}>
+                <FiPlus /> Ajouter
+              </button>
             </div>
           </div>
 
+          {error && (
+            <div className="error-message">
+              {error}
+              <button onClick={() => setError(null)}>×</button>
+            </div>
+          )}
+
           <div className="participants-table-container">
-            <table className="elegant-table">
-              <thead>
-                <tr>
-                  <th>Nom</th>
-                  <th>Prénom</th>
-                  <th>Email</th>
-                  <th>Téléphone</th>
-                  <th>Adresse</th>
-                  <th>Niveau d'étude</th>
-                  <th>Formation</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {currentItems.length > 0 ? (
-                  currentItems.map((participant) => (
-                    <tr key={participant.id}>
-                      <td>
-                        <div className="user-info">
-                          <img 
-                            src={participant.image}
-                            alt={`${participant.nom} ${participant.prenom}`}
-                            className="profile-image"
-                            onError={e => { e.target.src = pdp; }}
-                          />
-                          {participant.nom}
-                        </div>
-                      </td>
-                      <td>{participant.prenom}</td>
-                      <td>{participant.email}</td>
-                      <td>{participant.telephone}</td>
-                      <td>{participant.adresse}</td>
-                      <td>
-                        <span className="niveau-etude-badge">{participant.niveauEtude}</span>
-                      </td>
-                      <td>{participant.formation}</td>
-                      <td>
-                        <div className="actions">
-                          <button 
-                            className="edit-button"
-                            onClick={() => handleEditClick(participant)}
-                          >
-                            <FiEdit2 />
-                          </button>
-                          <button 
-                            className="delete-button"
-                            onClick={() => handleDelete(participant.id)}
-                          >
-                            <FiTrash2 />
-                          </button>
-                        </div>
-                      </td>
+            {loading ? null : (
+              <>
+                <table className="elegant-table">
+                  <thead>
+                    <tr>
+                      <th>Photo</th>
+                      <th>Nom</th>
+                      <th>Prénom</th>
+                      <th>Email</th>
+                      <th>Téléphone</th>
+                      <th>Actions</th>
                     </tr>
-                  ))
-                ) : (
-                  <tr className="no-results">
-                    <td colSpan="7">Aucun participant trouvé</td>
-                  </tr>
+                  </thead>
+                  <tbody>
+                    {participants.length > 0 ? (
+                      participants.map((participant) => (
+                        <tr key={participant.id}>
+                          <td>
+                            <div className="user-info">
+                              <img 
+                                src={getImageUrl(participant.image)}
+                                alt={`${participant.nom} ${participant.prenom}`}
+                                className="profile-image"
+                                onError={e => { e.target.src = pdp; }}
+                              />
+                            </div>
+                          </td>
+                          <td>{participant.nom}</td>
+                          <td>{participant.prenom}</td>
+                          <td>{participant.email}</td>
+                          <td>{participant.telephone}</td>
+                          <td>
+                            <div className="actions">
+                              <button 
+                                className="edit-button"
+                                onClick={() => handleEditClick(participant)}
+                                title="Modifier"
+                              >
+                                <FiEdit2 />
+                              </button>
+                              <button 
+                                className="delete-button"
+                                onClick={() => handleDelete(participant.id)}
+                                title="Supprimer"
+                              >
+                                <FiTrash2 />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="no-results">
+                        <td colSpan="6">
+                          {searchTerm 
+                            ? 'Aucun participant ne correspond à votre recherche' 
+                            : 'Aucun participant trouvé'}
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+
+                {totalPages > 1 && (
+                  <div className="pagination-container">
+                    <button 
+                      onClick={() => paginate(currentPage - 1)} 
+                      disabled={currentPage === 1}
+                      className="pagination-button pagination-nav-button"
+                    >
+                      <FiChevronLeft /> Précédent
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
+                      <button
+                        key={number}
+                        onClick={() => paginate(number)}
+                        className={`pagination-button ${currentPage === number ? 'active' : ''}`}
+                      >
+                        {number}
+                      </button>
+                    ))}
+
+                    <button 
+                      onClick={() => paginate(currentPage + 1)} 
+                      disabled={currentPage === totalPages}
+                      className="pagination-button pagination-nav-button"
+                    >
+                      Suivant <FiChevronRight />
+                    </button>
+                  </div>
                 )}
-              </tbody>
-            </table>
 
-            {/* Pagination */}
-            {participantsFiltres.length > itemsPerPage && (
-              <div className="pagination-container">
-                <button 
-                  onClick={() => paginate(currentPage - 1)} 
-                  disabled={currentPage === 1}
-                  className="pagination-button pagination-nav-button"
-                >
-                  <FiChevronLeft /> Précédent
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(number => (
-                  <button
-                    key={number}
-                    onClick={() => paginate(number)}
-                    className={`pagination-button ${currentPage === number ? 'active' : ''}`}
-                  >
-                    {number}
-                  </button>
-                ))}
-
-                <button 
-                  onClick={() => paginate(currentPage + 1)} 
-                  disabled={currentPage === totalPages}
-                  className="pagination-button pagination-nav-button"
-                >
-                  Suivant <FiChevronRight />
-                </button>
-              </div>
+                
+              </>
             )}
           </div>
 
-          {/* Popup d'ajout */}
           {showPopup && (
             <div className="modal-overlay">
               <div className="modal-content">
@@ -368,7 +427,7 @@ const Participants = () => {
                 
                 <form onSubmit={handleSubmit}>
                   <div className="input-group">
-                    <FiUser className="input-icon1" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="nom"
@@ -380,7 +439,7 @@ const Participants = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon1" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="prenom"
@@ -392,7 +451,7 @@ const Participants = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiMail className="input-icon1" />
+                    <FiMail className="input-icon" />
                     <input
                       type="email"
                       name="email"
@@ -404,7 +463,7 @@ const Participants = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiPhone className="input-icon1" />
+                    <FiPhone className="input-icon" />
                     <input
                       type="tel"
                       name="telephone"
@@ -415,70 +474,40 @@ const Participants = () => {
                     />
                   </div>
                   
-                  <div className="input-group">
-                    <FiMapPin className="input-icon1" />
-                    <input
-                      type="text"
-                      name="adresse"
-                      placeholder="Adresse"
-                      value={newParticipant.adresse}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="input-group">
-                    <FiBook className="input-icon1" />
-                    <select
-                      name="niveauEtude"
-                      value={newParticipant.niveauEtude}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Niveau d'étude</option>
-                      {niveauxEtude.filter(n => n !== 'Tous').map((niveau) => (
-                        <option key={niveau} value={niveau}>{niveau}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="input-group">
-                    <FiMapPin className="input-icon1" />
-                    <input
-                      type="text"
-                      name="formation"
-                      placeholder="Formation"
-                      value={newParticipant.formation}
-                      onChange={handleInputChange}
-                      required
-                    />
-                  </div>
-                  
-                  <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
-                    <label>Photo de profil</label>
-                    <img src={newParticipant.image} alt="Profil" style={{width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginBottom: 8}} />
+                  <div className="input-group image-upload">
+                    <label>Photo de profil (optionnel)</label>
                     <input
                       type="file"
                       accept="image/*"
-                      onChange={e => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = ev => {
-                            setNewParticipant(prev => ({ ...prev, image: ev.target.result }));
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
+                      onChange={handleImageChange}
                     />
+                    {newParticipant.image && (
+                      <div className="image-preview">
+                        <img 
+                          src={getImageUrl(newParticipant.image)} 
+                          alt="Aperçu" 
+                        />
+                      </div>
+                    )}
                   </div>
                   
+                  {error && <div className="form-error">{error}</div>}
+                  
                   <div className="modal-actions">
-                    <button type="button" className="cancel-button" onClick={closePopup}>
+                    <button 
+                      type="button" 
+                      className="cancel-button" 
+                      onClick={closePopup}
+                      disabled={isSubmitting}
+                    >
                       Annuler
                     </button>
-                    <button type="submit" className="submit-button">
-                      Enregistrer
+                    <button 
+                      type="submit" 
+                      className="submit-button"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Traitement...' : 'Enregistrer'}
                     </button>
                   </div>
                 </form>
@@ -486,7 +515,6 @@ const Participants = () => {
             </div>
           )}
 
-          {/* Popup de modification */}
           {showEditPopup && (
             <div className="modal-overlay">
               <div className="modal-content">
@@ -499,7 +527,7 @@ const Participants = () => {
                 
                 <form onSubmit={handleSubmit}>
                   <div className="input-group">
-                    <FiUser className="input-icon1" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="nom"
@@ -509,28 +537,9 @@ const Participants = () => {
                       required
                     />
                   </div>
-                  {/* Affichage et modification de l'image de profil */}
-                  <div className="input-group" style={{flexDirection: 'column', alignItems: 'flex-start'}}>
-                    <label>Photo de profil</label>
-                    <img src={newParticipant.image} alt="Profil" style={{width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', marginBottom: 8}} />
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={e => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = ev => {
-                            setNewParticipant(prev => ({ ...prev, image: ev.target.result }));
-                          };
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                    />
-                  </div>
                   
                   <div className="input-group">
-                    <FiUser className="input-icon1" />
+                    <FiUser className="input-icon" />
                     <input
                       type="text"
                       name="prenom"
@@ -542,7 +551,7 @@ const Participants = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiMail className="input-icon1" />
+                    <FiMail className="input-icon" />
                     <input
                       type="email"
                       name="email"
@@ -554,7 +563,7 @@ const Participants = () => {
                   </div>
                   
                   <div className="input-group">
-                    <FiPhone className="input-icon1" />
+                    <FiPhone className="input-icon" />
                     <input
                       type="tel"
                       name="telephone"
@@ -565,39 +574,47 @@ const Participants = () => {
                     />
                   </div>
                   
-                  <div className="input-group">
-                    <FiMapPin className="input-icon1" />
+                  <div className="input-group image-upload">
+                    <label>Photo de profil</label>
+                    <div className="current-image">
+                      <img 
+                        src={getImageUrl(newParticipant.image)} 
+                        alt="Profil actuel" 
+                      />
+                    </div>
                     <input
-                      type="text"
-                      name="adresse"
-                      placeholder="Adresse"
-                      value={newParticipant.adresse}
-                      onChange={handleInputChange}
-                      required
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
                     />
+                    {newParticipant.image instanceof File && (
+                      <div className="image-preview">
+                        <span>Nouvel aperçu:</span>
+                        <img 
+                          src={URL.createObjectURL(newParticipant.image)} 
+                          alt="Nouvel aperçu" 
+                        />
+                      </div>
+                    )}
                   </div>
                   
-                  <div className="input-group">
-                    <FiBook className="input-icon1" />
-                    <select
-                      name="niveauEtude"
-                      value={newParticipant.niveauEtude}
-                      onChange={handleInputChange}
-                      required
-                    >
-                      <option value="">Niveau d'étude</option>
-                      {niveauxEtude.filter(n => n !== 'Tous').map((niveau) => (
-                        <option key={niveau} value={niveau}>{niveau}</option>
-                      ))}
-                    </select>
-                  </div>
+                  {error && <div className="form-error">{error}</div>}
                   
                   <div className="modal-actions">
-                    <button type="button" className="cancel-button" onClick={closePopup}>
+                    <button 
+                      type="button" 
+                      className="cancel-button" 
+                      onClick={closePopup}
+                      disabled={isSubmitting}
+                    >
                       Annuler
                     </button>
-                    <button type="submit" className="submit-button">
-                      Mettre à jour
+                    <button 
+                      type="submit" 
+                      className="submit-button"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? 'Mise à jour...' : 'Mettre à jour'}
                     </button>
                   </div>
                 </form>

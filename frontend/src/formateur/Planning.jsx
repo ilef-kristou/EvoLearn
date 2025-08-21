@@ -11,7 +11,7 @@ const JOURS_SEMAINE = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi'];
 
 const Planning = () => {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState('2025-08-11'); // Default to Aug 11, 2025
   const [plannings, setPlannings] = useState([]);
   const [formateurId, setFormateurId] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -21,19 +21,39 @@ const Planning = () => {
   const token = localStorage.getItem('jwt');
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
+    if (!dateString) return 'Date inconnue';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('fr-FR', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      });
+    } catch {
+      return 'Date invalide';
+    }
   };
 
   const getWeekStart = (date) => {
     const d = new Date(date);
     const day = d.getDay();
     const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-    return new Date(d.setDate(diff)).toISOString().split('T')[0];
+    return new Date(d.setDate(diff));
+  };
+
+  const getWeekDates = (weekStartDate) => {
+    const weekStart = new Date(weekStartDate);
+    const weekDates = [];
+    for (let i = 0; i < 5; i++) {
+      const date = new Date(weekStart);
+      date.setDate(weekStart.getDate() + i);
+      weekDates.push({
+        jour: JOURS_SEMAINE[i],
+        date: date.toISOString().split('T')[0]
+      });
+    }
+    console.log('Week dates:', weekDates);
+    return weekDates;
   };
 
   const fetchApi = async (url, options = {}) => {
@@ -82,8 +102,9 @@ const Planning = () => {
         // Fetch planning for the formateur
         const response = await fetchApi(`${API_BASE}/plannings/formateur/${userData.id}`);
         
-        // Normaliser les données pour s'assurer que c'est toujours un tableau
+        // Normaliser les données
         const normalizedPlannings = Array.isArray(response?.plannings) ? response.plannings : [];
+        console.log('Normalized plannings:', normalizedPlannings);
         setPlannings(normalizedPlannings);
       } catch (err) {
         setError(err.message);
@@ -95,9 +116,46 @@ const Planning = () => {
     fetchUserAndPlanning();
   }, [token, navigate]);
 
-  const getSeancesByJour = (jour) => {
+  const getSeancesByJour = (jour, targetDate) => {
     if (!Array.isArray(plannings)) return [];
-    return plannings.filter(seance => seance?.jour === jour);
+    const seances = plannings
+      .filter(seance => {
+        if (seance?.jour !== jour || !seance?.formation) return false;
+
+        // Primary filter: match jour and exact date if available
+        if (seance?.date && seance.jour === jour && seance.date === targetDate) {
+          return true;
+        }
+
+        // Fallback: derive all possible dates for the jour within formation date range
+        const formationStart = new Date(seance.formation.date_debut);
+        const formationEnd = new Date(seance.formation.date_fin);
+        const target = new Date(targetDate);
+        
+        // Check if target date is within formation duration
+        if (target < formationStart || target > formationEnd) return false;
+
+        // Calculate the day of the week for formationStart and jour
+        const joursOrder = { Lundi: 1, Mardi: 2, Mercredi: 3, Jeudi: 4, Vendredi: 5 };
+        const formationDay = formationStart.getDay();
+        const targetDay = joursOrder[jour];
+        const diff = (targetDay - formationDay + 7) % 7;
+
+        // Find the first occurrence of the jour after formationStart
+        const firstOccurrence = new Date(formationStart);
+        firstOccurrence.setDate(formationStart.getDate() + diff);
+
+        // If formation spans multiple weeks, check if targetDate matches any weekly occurrence
+        if (firstOccurrence <= target && target <= formationEnd) {
+          const daysDiff = (target - firstOccurrence) / (1000 * 60 * 60 * 24);
+          return daysDiff % 7 === 0; // True if targetDate is a multiple of 7 days from firstOccurrence
+        }
+
+        return false;
+      })
+      .sort((a, b) => a.heure_debut.localeCompare(b.heure_debut));
+    console.log(`Seances for ${jour} (${targetDate}):`, seances);
+    return seances;
   };
 
   const handleWeekChange = (offset) => {
@@ -302,11 +360,11 @@ const Planning = () => {
                     </h2>
                     
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                      {JOURS_SEMAINE.map((jour) => {
-                        const seances = getSeancesByJour(jour);
+                      {getWeekDates(getWeekStart(selectedDate)).map(({ jour, date }) => {
+                        const seances = getSeancesByJour(jour, date);
                         return (
                           <motion.div
-                            key={jour}
+                            key={`${jour}-${date}`}
                             style={{ 
                               border: '1px solid var(--light-gray)', 
                               borderRadius: 12, 
@@ -323,7 +381,7 @@ const Planning = () => {
                               fontWeight: 600,
                               fontSize: '1.1rem'
                             }}>
-                              {jour}
+                              {jour} ({formatDate(date)})
                             </div>
                             
                             {seances.length > 0 ? (
@@ -389,17 +447,17 @@ const Planning = () => {
                                           <FiMapPin size={14} />
                                           {seance.salle || 'Non attribuée'}
                                         </span>
-                                        {seance.formation?.participants && (
-                                        <span style={{ 
-                                          color: 'var(--light-blue)', 
-                                          fontSize: '0.9rem', 
-                                          display: 'flex', 
-                                          alignItems: 'center', 
-                                          gap: 4 
-                                        }}>
-                                          <FiUsers size={14} />
-                                          {seance.formation.participants} participants
-                                        </span>
+                                        {seance.formation?.places_disponibles && (
+                                          <span style={{ 
+                                            color: 'var(--light-blue)', 
+                                            fontSize: '0.9rem', 
+                                            display: 'flex', 
+                                            alignItems: 'center', 
+                                            gap: 4 
+                                          }}>
+                                            <FiUsers size={14} />
+                                            {seance.formation.places_disponibles} participants
+                                          </span>
                                         )}
                                       </div>
                                       <p style={{
@@ -448,7 +506,7 @@ const Planning = () => {
         </div>
       </div>
       
-      <Footer />
+     
     </div>
   );
 };

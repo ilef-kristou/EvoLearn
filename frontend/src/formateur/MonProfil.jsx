@@ -228,7 +228,7 @@ const MonProfil = () => {
           </main>
         </div>
       </div>
-      <Footer />
+     
     </div>
   );
 };

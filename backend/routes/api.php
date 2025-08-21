@@ -11,13 +11,16 @@ use App\Http\Controllers\Auth\VerifyEmailController;
 use App\Http\Controllers\FormationController;
 use App\Http\Controllers\FormateurController;
 use App\Http\Controllers\ParticipantController;
+use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PlanningController;
 use App\Http\Controllers\PlanningJourController;
 use App\Http\Controllers\SalleController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\AdminFormateurController;
 use App\Http\Controllers\AdminChargeController;
+use App\Http\Controllers\AdminParticipantController;
 use App\Http\Controllers\DemandeInscriptionController;
+use App\Http\Controllers\RessourceController;
 use Tymon\JWTAuth\Facades\JWTAuth;
 
 Route::post('/register', [RegisteredUserController::class, 'store'])
@@ -113,3 +116,57 @@ Route::middleware(['jwt.auth'])->group(function () {
 Route::apiResource('admin/formateurs', AdminFormateurController::class);
 Route::apiResource('admin/charges', AdminChargeController::class);
 Route::get('/admin/dashboard', [AdminController::class, 'dashboard']);
+
+Route::prefix('admin/participants')->group(function () {
+    Route::get('/', [AdminParticipantController::class, 'index']);
+    Route::post('/', [AdminParticipantController::class, 'store']);
+    Route::get('/stats', [AdminParticipantController::class, 'stats']);
+    Route::get('/{id}', [AdminParticipantController::class, 'show']);
+    Route::put('/{id}', [AdminParticipantController::class, 'update']);
+    Route::delete('/{id}', [AdminParticipantController::class, 'destroy']);
+});
+
+Route::get('/health', function () {
+    try {
+        \DB::connection()->getPdo();
+        return response()->json([
+            'status' => 'OK',
+            'database' => 'Connected',
+            'timestamp' => now()->toDateTimeString()
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'status' => 'Error',
+            'database' => 'Disconnected',
+            'error' => $e->getMessage(),
+            'timestamp' => now()->toDateTimeString()
+        ], 500);
+    }
+});
+
+// Routes du dashboard
+Route::prefix('dashboard')->group(function () {
+    Route::get('/demande-status', [DashboardController::class, 'getDemandeStatusData']);
+    Route::get('/stats', [DashboardController::class, 'getStats']);
+    Route::get('/registration-data/{year?}', [DashboardController::class, 'getRegistrationData']);
+    Route::get('/formation-status', [DashboardController::class, 'getFormationStatusData']);
+    Route::get('/recent-activities', [DashboardController::class, 'getRecentActivities']);
+    Route::get('/upcoming-events', [DashboardController::class, 'getUpcomingEvents']);
+    Route::get('/all-data', [DashboardController::class, 'getDashboardData']);
+    Route::get('/test', [DashboardController::class, 'testConnection']);
+});
+
+
+Route::prefix('ressources')->group(function () {
+    Route::get('/check-availability', [RessourceController::class, 'checkAvailability']);
+    Route::get('/reservations', [RessourceController::class, 'getReservations']);
+    Route::post('/reserver', [RessourceController::class, 'reserver']);
+    
+    Route::get('/', [RessourceController::class, 'index']);
+    Route::post('/', [RessourceController::class, 'store']);
+    Route::get('/{id}', [RessourceController::class, 'show']);
+    Route::put('/{id}', [RessourceController::class, 'update']);
+    Route::delete('/{id}', [RessourceController::class, 'destroy']);
+    Route::delete('/reservations/{id}', [RessourceController::class, 'deleteReservation']);
+    Route::put('/reservations/{id}', [RessourceController::class, 'updateReservation']);
+});

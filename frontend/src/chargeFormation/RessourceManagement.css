@@ -1,0 +1,324 @@
+.ressources-management-container {
+    display: flex;
+    min-height: 100vh;
+  }
+  
+  .main-content {
+    flex: 1;
+    padding: 2rem;
+    transition: margin-left 0.3s;
+  }
+  
+  .sidebar-collapsed .main-content {
+    margin-left: 80px;
+  }
+  
+  .loading-overlay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+  }
+  
+  .loading-spinner {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 4px solid;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+  }
+  
+  .error-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .error-container button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  .page-header {
+    margin-bottom: 2rem;
+  }
+  
+  .header-content h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  
+  .action-bar {
+    margin-bottom: 2rem;
+  }
+  
+  .search-container input {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid;
+    font-size: 1rem;
+  }
+  
+  .ressources-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 2rem;
+  }
+  
+  .ressource-card {
+    background: white;
+    border-radius: 18px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    border-top: 4px solid;
+  }
+  
+  .ressource-header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .ressource-icon {
+    background: #e8eaf6;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .reservations-list {
+    flex: 1;
+    margin-bottom: 1rem;
+  }
+  
+  .reservation-item {
+    background: #f5f5f5;
+    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+    margin-bottom: 0.5rem;
+    border-left: 4px solid;
+  }
+  
+  .seance-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+    font-size: 0.9em;
+  }
+  
+  .seance-details span {
+    background: #e8eaf6;
+    border-radius: 6px;
+    padding: 2px 8px;
+  }
+  
+  .reserve-button {
+    margin-top: auto;
+    align-self: flex-end;
+    padding: 0.7rem 1.5rem;
+    border-radius: 8px;
+    border: none;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+  
+  .modal-container {
+    background: white;
+    border-radius: 12px;
+    max-width: 500px;
+    width: 90%;
+    overflow: hidden;
+  }
+  
+  .modal-header {
+    padding: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .modal-header h2 {
+    margin: 0;
+  }
+  
+  .close-button {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+  }
+  
+  form {
+    padding: 1.5rem;
+  }
+  
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+  
+  .form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+  }
+  
+  .form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 1px solid;
+  }
+  
+  .seances-list {
+    margin-bottom: 1.5rem;
+  }
+  
+  .seances-list label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+  }
+  
+  .seances-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    background: #f4f6fa;
+    border-radius: 12px;
+    padding: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+  
+  .seance-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    transition: all 0.2s;
+    position: relative;
+  }
+  
+  .seance-item.selected {
+    background: #e8eaf6;
+    border-color: #b3b8e0;
+  }
+  
+  .seance-item.disabled {
+    opacity: 0.6;
+  }
+  
+  .seance-info {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .seance-info span:first-child {
+    font-weight: 600;
+  }
+  
+  .seance-info span:first-child span {
+    font-weight: 400;
+    color: #888;
+  }
+  
+  .availability-badge {
+    padding: 0.25rem 0.5rem;
+    border-radius: 6px;
+    font-size: 0.9em;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border: 1.5px solid;
+  }
+  
+  .seance-item input[type="number"] {
+    width: 60px;
+    padding: 0.5rem;
+    border-radius: 6px;
+    border: 1.5px solid;
+    font-weight: 600;
+    text-align: center;
+  }
+  
+  .quantity-error {
+    position: absolute;
+    bottom: -1.25rem;
+    right: 0;
+    font-size: 0.75rem;
+    color: #d32f2f;
+  }
+  
+  .error-message {
+    padding: 0.75rem;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  
+  .cancel-button, .submit-button {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .cancel-button {
+    background: transparent;
+    border: 1px solid;
+  }
+  
+  .submit-button:disabled {
+    cursor: not-allowed;
+  }
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../Components/Header';
-import Footer from '../Components/Footer';
 import FormateurSidebar from './FormateurSidebar';
 import { FiBook, FiCalendar, FiUsers, FiClock, FiMapPin } from 'react-icons/fi';
 
@@ -14,6 +13,31 @@ const MesFormations = () => {
   const [error, setError] = useState(null);
 
   const token = localStorage.getItem('jwt');
+
+  // Function to calculate duration between two dates
+  const calculateDuration = (startDate, endDate) => {
+    if (!startDate || !endDate) return 'Non spécifié';
+    try {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (isNaN(start) || isNaN(end) || end < start) return 'Non spécifié';
+
+      const diffTime = end - start;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 13) {
+        return `${diffDays} jour${diffDays > 1 ? 's' : ''}`;
+      } else if (diffDays <= 27) {
+        const weeks = Math.round(diffDays / 7);
+        return `${weeks} semaine${weeks > 1 ? 's' : ''}`;
+      } else {
+        const months = Math.round(diffDays / 30);
+        return `${months} mois`;
+      }
+    } catch {
+      return 'Non spécifié';
+    }
+  };
 
   useEffect(() => {
     if (!token) {
@@ -64,48 +88,68 @@ const MesFormations = () => {
         }
 
         const data = await response.json();
-        
-        // Normalisation des données
-        const planningsData = Array.isArray(data?.plannings) ? data.plannings : [];
-        if (!Array.isArray(planningsData)) {
-          throw new Error("Format de données invalide reçu de l'API");
+        console.log('API response /plannings/formateur:', data);
+
+        // Normalize data: group by formation.id for accepted plannings
+        const planningsData = Array.isArray(data.plannings) ? data.plannings : [];
+        console.log('Plannings data:', planningsData);
+
+        if (!Array.isArray(planningsData) || planningsData.length === 0) {
+          console.log('No plannings found for formateur:', formateurId);
+          setFormations([]);
+          setLoading(false);
+          return;
         }
 
-        const mappedFormations = planningsData
-          .filter(planning => planning?.statut === 'accepte')
-          .map(planning => {
-            const start = planning.formation?.date_debut ? new Date(planning.formation.date_debut) : null;
-            const end = planning.formation?.date_fin ? new Date(planning.formation.date_fin) : null;
-            const now = new Date();
-            
-            let progression = 0.0;
-            if (start && end && !isNaN(start) && !isNaN(end) && end > start) {
-              progression = now >= end ? 1.0 : now <= start ? 0.0 : (now - start) / (end - start);
+        // Group sessions by formation.id
+        const groupedFormations = planningsData
+          .filter(session => session.statut === 'accepte' && session.formation?.id)
+          .reduce((acc, session) => {
+            const formationId = session.formation.id;
+            if (!acc[formationId]) {
+              const start = session.formation?.date_debut ? new Date(session.formation.date_debut) : null;
+              const end = session.formation?.date_fin ? new Date(session.formation.date_fin) : null;
+              const now = new Date();
+              let progression = 0.0;
+              if (start && end && !isNaN(start) && !isNaN(end) && end > start) {
+                progression = now >= end ? 1.0 : now <= start ? 0.0 : (now - start) / (end - start);
+              }
+
+              acc[formationId] = {
+                id: formationId,
+                titre: session.formation?.titre || 'Formation inconnue',
+                description: session.formation?.description || 'Aucune description',
+                statut: 'Acceptée',
+                participants: session.formation?.places_disponibles || 20,
+                progression,
+                dateDebut: session.formation?.date_debut,
+                dateFin: session.formation?.date_fin,
+                planning: [],
+                niveau: session.formation?.niveau || 'Non spécifié',
+                duree: calculateDuration(session.formation?.date_debut, session.formation?.date_fin),
+              };
             }
 
-            return {
-              id: planning.id,
-              titre: planning.formation?.titre || 'Formation inconnue',
-              description: planning.formation?.description || 'Aucune description',
-              statut: 'Acceptée',
-              participants: planning.formation?.places_disponibles || 20,
-              progression,
-              dateDebut: planning.formation?.date_debut,
-              dateFin: planning.formation?.date_fin,
-              planning: Array.isArray(planning.jours) 
-                ? planning.jours.map(jour => ({
-                    jour: jour.jour || 'Jour inconnu',
-                    heure: jour.heure_debut && jour.heure_fin 
-                      ? `${jour.heure_debut}-${jour.heure_fin}` 
-                      : 'Heure non spécifiée',
-                    salle: jour.salle?.nom || 'Salle inconnue',
-                  }))
-                : [],
-              niveau: planning.formation?.niveau || 'Non spécifié',
-              duree: planning.formation?.duree || 'Non spécifié',
-            };
-          });
+            // Add session to the planning array
+            acc[formationId].planning.push({
+              jour: session.jour || 'Jour inconnu',
+              heure: session.heure_debut && session.heure_fin
+                ? `${session.heure_debut}-${session.heure_fin}`
+                : 'Heure non spécifiée',
+              salle: session.salle || 'Salle inconnue',
+            });
 
+            return acc;
+          }, {});
+
+        // Sort planning by day order (Lundi to Dimanche)
+        const joursOrder = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+        const mappedFormations = Object.values(groupedFormations).map(formation => ({
+          ...formation,
+          planning: formation.planning.sort((a, b) => joursOrder.indexOf(a.jour) - joursOrder.indexOf(b.jour)),
+        }));
+
+        console.log('Mapped formations:', mappedFormations);
         setFormations(mappedFormations);
       } catch (err) {
         setError(err.message);
@@ -475,7 +519,6 @@ const MesFormations = () => {
         </div>
       </div>
       
-      <Footer />
     </div>
   );
 };

@@ -35,6 +35,9 @@ import FormateurPlanning from "./formateur/Planning.jsx";
 import FormateurDemandes from "./formateur/Demandes.jsx";
 import FormateurMonProfil from "./formateur/MonProfil.jsx";
 import ParticipantMonProfil from "./participant/MonProfil.jsx";
+import Dashboard from "./admin/Dashboard.jsx";
+import '@fortawesome/fontawesome-free/css/all.min.css';
+
 
 function App() {
   const navigate = useNavigate();
@@ -203,6 +206,7 @@ function App() {
           <Route path="/admin/ChargeFormations" element={<ChargeFormations />} />
           <Route path="/admin/participants" element={<Participants />} />
           <Route path="/admin" element={<AdminSidebar />} />
+          <Route path="/admin/dashboard" element={<Dashboard />} />
         </Routes>
       )}
 

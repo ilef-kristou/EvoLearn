@@ -20,6 +20,31 @@ const Demandes = () => {
 
   const token = localStorage.getItem('jwt');
 
+  const fetchApi = async (url, options = {}) => {
+    if (!token && !url.includes('/auth')) {
+      throw new Error('Authentication token missing');
+    }
+
+    const headers = {
+      'Authorization': `Bearer ${token}`,
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      ...options.headers,
+    };
+
+    try {
+      const response = await fetch(url, { ...options, headers });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Erreur ${response.status}: ${errorText}`);
+      }
+      return response.status === 204 ? null : await response.json();
+    } catch (err) {
+      console.error('API call failed:', { url, error: err.message, response: await fetch(url, { ...options, headers }).then(res => res.text()).catch(() => 'No response') });
+      throw err;
+    }
+  };
+
   useEffect(() => {
     if (!token) {
       setError("Utilisateur non authentifié. Veuillez vous connecter.");
@@ -29,79 +54,67 @@ const Demandes = () => {
 
     const fetchFormateurProfile = async () => {
       try {
-        const response = await fetch(`${API_BASE}/formateur/profile`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Erreur ${response.status}: ${errorText}`);
-        }
-
-        const data = await response.json();
+        const data = await fetchApi(`${API_BASE}/formateur/profile`);
+        console.log('Formateur profile:', data);
         setFormateurId(data.id);
       } catch (err) {
-        setError(err.message);
+        setError(`Erreur lors de la récupération du profil: ${err.message}`);
         setLoading(false);
       }
     };
 
     const fetchDemandes = async () => {
       if (!formateurId) return;
-
+    
       try {
         setLoading(true);
-        const response = await fetch(`${API_BASE}/plannings/formateur/${formateurId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/json',
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`Erreur ${response.status}: ${errorText}`);
+        const response = await fetchApi(`${API_BASE}/plannings/formateur/${formateurId}`);
+        console.log('API response /plannings/formateur:', response);
+    
+        const planningsData = Array.isArray(response?.plannings) ? response.plannings : [];
+        console.log('Plannings data:', planningsData);
+    
+        if (planningsData.length === 0) {
+          console.log('No plannings found for formateur:', formateurId);
+          setDemandes([]);
+          setLoading(false);
+          return;
         }
-
-        const data = await response.json();
-        
-        // Normalisation des données
-        const planningsData = Array.isArray(data?.plannings) ? data.plannings : [];
-        if (!Array.isArray(planningsData)) {
-          throw new Error("Format de données invalide reçu de l'API");
-        }
-
-        const mappedDemandes = planningsData.map(planning => ({
-          id: planning.id,
-          formation: planning.formation?.titre || 'Formation inconnue',
-          chargeFormation: 'Chargé inconnu',
-          dateDemande: planning.created_at,
-          dateDebut: planning.formation?.date_debut,
-          dateFin: planning.formation?.date_fin,
-          participants: planning.formation?.places_disponibles || 20,
-          salle: planning.jours?.[0]?.salle?.nom || 'Salle inconnue',
-          planning: Array.isArray(planning.jours) 
-            ? planning.jours.map(jour => ({
-                jour: jour.jour || 'Jour inconnu',
-                heure: jour.heure_debut && jour.heure_fin 
-                  ? `${jour.heure_debut}-${jour.heure_fin}`
-                  : 'Heure non spécifiée',
-              }))
-            : [],
-          statut: planning.statut === 'en_attente' ? 'En attente' : 
-                  planning.statut === 'accepte' ? 'Acceptée' : 'Refusée',
-          description: planning.formation?.description || 'Aucune description',
-          cause_refus: planning.cause_refus,
-        }));
-
+    
+        // Group jours by planning_id
+        const groupedPlannings = planningsData.reduce((acc, jour) => {
+          const planningId = jour.planning_id;
+          if (!acc[planningId]) {
+            acc[planningId] = {
+              id: planningId,
+              formation: jour.formation?.titre || 'Formation inconnue',
+              chargeFormation: 'Chargé inconnu',
+              dateDemande: jour.created_at || new Date().toISOString(),
+              dateDebut: jour.formation?.date_debut,
+              dateFin: jour.formation?.date_fin,
+              participants: jour.formation?.places_disponibles || 20,
+              salle: jour.salle || 'Salle inconnue',
+              planning: [],
+              statut: jour.statut === 'en_attente' ? 'En attente' : 
+                      jour.statut === 'accepte' ? 'Acceptée' : 'Refusée',
+              description: jour.formation?.description || 'Aucune description',
+              cause_refus: jour.cause_refus,
+            };
+          }
+          acc[planningId].planning.push({
+            jour: jour.jour || 'Jour inconnu',
+            heure: jour.heure_debut && jour.heure_fin
+              ? `${jour.heure_debut}-${jour.heure_fin}`
+              : 'Heure non spécifiée',
+          });
+          return acc;
+        }, {});
+    
+        const mappedDemandes = Object.values(groupedPlannings).filter(demande => demande !== null);
+        console.log('Mapped demandes:', mappedDemandes);
         setDemandes(mappedDemandes);
       } catch (err) {
-        setError(err.message);
+        setError(`Erreur lors de la récupération des demandes: ${err.message}`);
       } finally {
         setLoading(false);
       }
@@ -133,21 +146,9 @@ const Demandes = () => {
 
   const handleAccept = async (demande) => {
     try {
-      const response = await fetch(`${API_BASE}/plannings/${demande.id}/accept`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Erreur ${response.status}: ${await response.text()}`);
-      }
-
-      setDemandes(prev => 
-        prev.map(d => 
+      await fetchApi(`${API_BASE}/plannings/${demande.id}/accept`, { method: 'POST' });
+      setDemandes(prev =>
+        prev.map(d =>
           d.id === demande.id ? { ...d, statut: 'Acceptée', cause_refus: null } : d
         )
       );
@@ -155,7 +156,7 @@ const Demandes = () => {
       setTimeout(() => setConfirmation(null), 3000);
       setShowModal(false);
     } catch (err) {
-      setError(err.message);
+      setError(`Erreur lors de l'acceptation: ${err.message}`);
     }
   };
 
@@ -166,22 +167,12 @@ const Demandes = () => {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/plannings/${demande.id}/refuse`, {
+      await fetchApi(`${API_BASE}/plannings/${demande.id}/refuse`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({ cause_refus: refuseReason }),
       });
-
-      if (!response.ok) {
-        throw new Error(`Erreur ${response.status}: ${await response.text()}`);
-      }
-
-      setDemandes(prev => 
-        prev.map(d => 
+      setDemandes(prev =>
+        prev.map(d =>
           d.id === demande.id ? { ...d, statut: 'Refusée', cause_refus: refuseReason } : d
         )
       );
@@ -190,7 +181,7 @@ const Demandes = () => {
       setShowModal(false);
       setRefuseReason('');
     } catch (err) {
-      setError(err.message);
+      setError(`Erreur lors du refus: ${err.message}`);
     }
   };
 
@@ -590,6 +581,16 @@ const Demandes = () => {
                                   }}>
                                     {seance.heure}
                                   </span>
+                                  <FiMapPin style={{ 
+                                    color: 'var(--light-blue)', 
+                                    fontSize: 16 
+                                  }} />
+                                  <span style={{ 
+                                    color: 'var(--dark-blue)', 
+                                    fontWeight: 500 
+                                  }}>
+                                    {seance.salle}
+                                  </span>
                                 </div>
                               ))
                             ) : (
@@ -671,7 +672,7 @@ const Demandes = () => {
         </div>
       </div>
       
-      <Footer />
+
     </div>
   );
 };

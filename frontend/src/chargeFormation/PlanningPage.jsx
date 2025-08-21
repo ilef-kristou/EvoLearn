@@ -41,6 +41,34 @@ const doDateRangesOverlap = (start1, end1, start2, end2) => {
   return d1Start <= d2End && d2Start <= d1End;
 };
 
+// New function to get valid days within formation date range
+const getValidDays = (dateDebut, dateFin) => {
+  if (!dateDebut || !dateFin) return JOURS_SEMAINE;
+  
+  const startDate = new Date(dateDebut);
+  const endDate = new Date(dateFin);
+  
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate > endDate) {
+    console.warn('Invalid date range:', { dateDebut, dateFin });
+    return JOURS_SEMAINE;
+  }
+
+  const validDays = [];
+  const currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayIndex = currentDate.getDay();
+    const dayName = JOURS_SEMAINE[dayIndex === 0 ? 6 : dayIndex - 1]; // Adjust Sunday (0) to last
+    if (!validDays.includes(dayName)) {
+      validDays.push(dayName);
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  console.log('Valid days for formation:', validDays);
+  return validDays;
+};
+
 // API service with auth
 const fetchApi = async (url, options = {}) => {
   const token = localStorage.getItem('jwt');
@@ -215,20 +243,29 @@ const PlanningPage = () => {
     
     updatedHoraire[field] = field.includes('heure') ? normalizeTime(value) : value;
     
+    // Ensure the selected day is valid within formation date range
+    if (field === 'jour') {
+      const validDays = getValidDays(formation?.date_debut, formation?.date_fin);
+      if (!validDays.includes(value)) {
+        updatedHoraire.jour = validDays[0] || JOURS_SEMAINE[0];
+      }
+    }
+    
     newHoraires[index] = updatedHoraire;
     setCurrentSeance({ ...currentSeance, horaires: newHoraires });
   };
 
   const addHoraire = () => {
+    const validDays = getValidDays(formation?.date_debut, formation?.date_fin);
     setCurrentSeance({
       ...currentSeance,
       horaires: [
         ...currentSeance.horaires,
         {
-          jour: "Lundi",
+          jour: validDays[0] || JOURS_SEMAINE[0],
           heureDebut: "09:00",
           heureFin: "12:00",
-          salle_id: sallesDisponibles.length > 0 ? sallesDisponibles[0].id : null
+          salle_id: null
         }
       ]
     });
@@ -240,30 +277,36 @@ const PlanningPage = () => {
   };
 
   const ajouterSeance = () => {
+    const validDays = getValidDays(formation?.date_debut, formation?.date_fin);
     setCurrentSeance({
       id: null,
       formateur_id: "",
       formateur_nom: "",
       formateur_prenom: "",
       horaires: [{
-        jour: "Lundi",
+        jour: validDays[0] || JOURS_SEMAINE[0],
         heureDebut: "09:00",
         heureFin: "12:00",
-        salle_id: sallesDisponibles.length > 0 ? sallesDisponibles[0].id : null
+        salle_id: null
       }]
     });
     setModalOpen(true);
   };
 
   const editerSeance = (planning) => {
+    const validDays = getValidDays(formation?.date_debut, formation?.date_fin);
     setCurrentSeance({
       ...planning,
-      horaires: planning.horaires.map(j => ({
-        ...j,
-        heureDebut: normalizeTime(j.heure_debut || j.heureDebut),
-        heureFin: normalizeTime(j.heure_fin || j.heureFin),
-        id: j.id
-      }))
+      horaires: planning.horaires.map(j => {
+        const normalizedJour = validDays.includes(j.jour) ? j.jour : validDays[0] || JOURS_SEMAINE[0];
+        return {
+          ...j,
+          jour: normalizedJour,
+          heureDebut: normalizeTime(j.heure_debut || j.heureDebut),
+          heureFin: normalizeTime(j.heure_fin || j.heureFin),
+          id: j.id
+        };
+      })
     });
     setModalOpen(true);
   };
@@ -306,12 +349,21 @@ const PlanningPage = () => {
       return;
     }
 
+    const validDays = getValidDays(formation?.date_debut, formation?.date_fin);
     for (const horaire of currentSeance.horaires) {
-      if (!horaire.jour || !horaire.heureDebut || !horaire.heureFin || horaire.heureDebut >= horaire.heureFin) {
+      if (!horaire.jour || !validDays.includes(horaire.jour)) {
+        setError(`Le jour ${horaire.jour} n'est pas valide pour cette formation`);
+        return;
+      }
+      if (!horaire.heureDebut || !horaire.heureFin || horaire.heureDebut >= horaire.heureFin) {
         setError("Veuillez vérifier les horaires et jours");
         return;
       }
-      if (horaire.salle_id && isSalleOccupied(
+      if (!horaire.salle_id) {
+        setError("Veuillez sélectionner une salle pour chaque jour");
+        return;
+      }
+      if (isSalleOccupied(
         horaire.salle_id,
         horaire.jour,
         horaire.heureDebut,
@@ -359,7 +411,7 @@ const PlanningPage = () => {
             jour: horaire.jour,
             heure_debut: normalizeTime(horaire.heureDebut),
             heure_fin: normalizeTime(horaire.heureFin),
-            salle_id: horaire.salle_id || sallesDisponibles[0]?.id,
+            salle_id: horaire.salle_id,
             planning_id: planningId
           };
 
@@ -438,6 +490,8 @@ const PlanningPage = () => {
     );
   }
 
+  const validDays = getValidDays(formation?.date_debut, formation?.date_fin);
+
   return (
     <div className={`planning-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
       <ChargeSidebar onToggle={setIsSidebarCollapsed} />
@@ -500,20 +554,6 @@ const PlanningPage = () => {
                           Du {formatDate(formation.date_debut)} au {formatDate(formation.date_fin)}
                         </span>
                       </motion.div>
-                      <motion.button
-                        className="add-button"
-                        onClick={ajouterSeance}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.4 }}
-                        whileHover={{
-                          scale: 1.05,
-                          boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
-                        }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <FiPlus /> Ajouter une séance
-                      </motion.button>
                     </div>
                   </div>
                 </div>
@@ -545,30 +585,57 @@ const PlanningPage = () => {
                     className="seance-card"
                     style={{
                       borderTop: '4px solid #e6b801',
-                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                      boxShadow: '0 4px 20px rgba(0,0,0,0.1)',
+                      position: 'relative',
                     }}
                     initial={{ opacity: 0, scale: 0.98 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.98 }}
                     transition={{ duration: 0.3 }}
                   >
-                    <motion.button
-                      className="edit-btn"
-                      onClick={() => editerSeance(planning)}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 10,
+                        right: 10,
+                        display: 'flex',
+                        gap: '0.5rem',
+                      }}
                     >
-                      <FiEdit2 size={22} />
-                    </motion.button>
-                    <motion.button
-                      className="delete-btn"
-                      onClick={() => supprimerSeance(planning.id)}
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.9 }}
-                    >
-                      <FiTrash2 size={22} color="#EF4444" />
-                    </motion.button>
-                    <div className="seance-content">
+                      <motion.button
+                        className="edit-btn"
+                        style={{
+                          background: 'white',
+                          borderRadius: '50%',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                          padding: 10,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => editerSeance(planning)}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <FiEdit2 size={22} color="#1976d2" title="Modifier la séance" />
+                      </motion.button>
+                      <motion.button
+                        className="delete-btn"
+                        style={{
+                          background: 'white',
+                          borderRadius: '50%',
+                          boxShadow: '0 2px 8px rgba(0,0,0,0.07)',
+                          padding: 10,
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                        onClick={() => supprimerSeance(planning.id)}
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.9 }}
+                      >
+                        <FiTrash2 size={22} color="#EF4444" title="Supprimer la séance" />
+                      </motion.button>
+                    </div>
+                    <div className="seance-content" style={{ paddingRight: '3rem' }}>
                       <div className="seance-meta">
                         <div className="meta-item">
                           <FiUser className="icon" />
@@ -681,9 +748,13 @@ const PlanningPage = () => {
                                   onChange={(e) => updateHoraire(index, 'jour', e.target.value)}
                                   required
                                 >
-                                  {JOURS_SEMAINE.map(jour => (
-                                    <option key={jour} value={jour}>{jour}</option>
-                                  ))}
+                                  {validDays.length > 0 ? (
+                                    validDays.map(jour => (
+                                      <option key={jour} value={jour}>{jour}</option>
+                                    ))
+                                  ) : (
+                                    <option value="" disabled>Aucun jour disponible</option>
+                                  )}
                                 </select>
                               </div>
                               <div className="form-group">
@@ -763,6 +834,7 @@ const PlanningPage = () => {
                         <button
                           type="submit"
                           className="submit-btn"
+                          disabled={validDays.length === 0}
                         >
                           Enregistrer et envoyer la demande
                         </button>

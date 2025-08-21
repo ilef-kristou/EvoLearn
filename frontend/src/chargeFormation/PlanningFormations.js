@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiCalendar, FiClock, FiMapPin, FiPlus, FiEdit2, FiTrash2, FiSearch, FiX } from 'react-icons/fi';
+import { FiCalendar, FiClock, FiMapPin, FiPlus,FiUser, FiEdit2, FiTrash2, FiSearch, FiX } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import './PlanningFormations.css';
 import ChargeSidebar from './ChargeSidebar';
@@ -18,6 +18,34 @@ const normalizeTime = (time) => {
     return cleanedTime;
   }
   return "09:00";
+};
+
+// New function to get valid days within formation date range
+const getValidDays = (dateDebut, dateFin) => {
+  if (!dateDebut || !dateFin) return JOURS_SEMAINE;
+  
+  const startDate = new Date(dateDebut);
+  const endDate = new Date(dateFin);
+  
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime()) || startDate > endDate) {
+    console.warn('Invalid date range:', { dateDebut, dateFin });
+    return JOURS_SEMAINE;
+  }
+
+  const validDays = [];
+  const currentDate = new Date(startDate);
+  
+  while (currentDate <= endDate) {
+    const dayIndex = currentDate.getDay();
+    const dayName = JOURS_SEMAINE[dayIndex === 0 ? 6 : dayIndex - 1]; // Adjust Sunday (0) to last
+    if (!validDays.includes(dayName)) {
+      validDays.push(dayName);
+    }
+    currentDate.setDate(currentDate.getDate() + 1);
+  }
+  
+  console.log('Valid days for formation:', validDays);
+  return validDays;
 };
 
 const PlanningFormations = () => {
@@ -202,6 +230,7 @@ const PlanningFormations = () => {
               formation_id: p.formation_id,
               formateur_id: p.formateur_id,
               formateur: p.formateur ? `${p.formateur.prenom} ${p.formateur.nom}` : 'Non assigné',
+              statut: p.statut, // Added to include status
               jours: jours.map(j => ({
                 id: j.id,
                 jour: j.jour,
@@ -232,17 +261,18 @@ const PlanningFormations = () => {
   };
 
   const openAddSeanceModal = (formation) => {
+    const validDays = getValidDays(formation.date_debut, formation.date_fin);
     setSelectedFormation(formation);
     setCurrentSeance({
       dateDebut: formation.date_debut || '',
       dateFin: formation.date_fin || '',
-      jours: [{
-        jour: "Lundi",
+      jours: validDays.length > 0 ? [{
+        jour: validDays[0],
         heureDebut: "09:00",
         heureFin: "12:00",
-        salle: sallesDisponibles[0]?.nom || '',
-        salle_id: sallesDisponibles[0]?.id || null,
-      }],
+        salle: '',
+        salle_id: null,
+      }] : [],
       formateur: '',
       planningId: null,
     });
@@ -250,12 +280,13 @@ const PlanningFormations = () => {
   };
 
   const openEditSeanceModal = (formation) => {
+    const validDays = getValidDays(formation.date_debut, formation.date_fin);
     const planning = plannings.find(p => p.formation_id === formation.id);
     setSelectedFormation(formation);
     setCurrentSeance({
       dateDebut: planning?.dateDebut || formation.date_debut || '',
       dateFin: planning?.dateFin || formation.date_fin || '',
-      jours: planning?.jours || [],
+      jours: planning?.jours.filter(j => validDays.includes(j.jour)) || [],
       formateur: planning?.formateur || '',
       planningId: planning?.id || null,
     });
@@ -267,6 +298,11 @@ const PlanningFormations = () => {
     try {
       if (!selectedFormation) {
         throw new Error('Aucune formation sélectionnée');
+      }
+
+      const validDays = getValidDays(selectedFormation.date_debut, selectedFormation.date_fin);
+      if (validDays.length === 0) {
+        throw new Error('Aucun jour valide pour cette formation');
       }
 
       const formateurData = formateurs.find(f => f.name === currentSeance.formateur);
@@ -303,7 +339,10 @@ const PlanningFormations = () => {
       }
 
       for (const jour of currentSeance.jours) {
-        if (!jour.jour || !jour.heureDebut || !jour.heureFin || jour.heureDebut >= jour.heureFin) {
+        if (!jour.jour || !validDays.includes(jour.jour)) {
+          throw new Error(`Le jour ${jour.jour} n'est pas valide pour cette formation`);
+        }
+        if (!jour.heureDebut || !jour.heureFin || jour.heureDebut >= jour.heureFin) {
           throw new Error('Veuillez vérifier les horaires et jours');
         }
         const salle = sallesDisponibles.find(s => s.nom === jour.salle);
@@ -316,8 +355,8 @@ const PlanningFormations = () => {
           jour.heureDebut,
           jour.heureFin,
           jour.id,
-          selectedFormation.date_debut,
-          selectedFormation.date_fin
+          currentSeance.dateDebut,
+          currentSeance.dateFin
         )) {
           throw new Error(`La salle ${jour.salle} est déjà réservée pour ${jour.jour} de ${jour.heureDebut} à ${jour.heureFin}`);
         }
@@ -374,6 +413,7 @@ const PlanningFormations = () => {
             formation_id: p.formation_id,
             formateur_id: p.formateur_id,
             formateur: p.formateur ? `${p.formateur.prenom} ${p.formateur.nom}` : 'Non assigné',
+            statut: p.statut, // Added to include status
             jours: jours.map(j => ({
               id: j.id,
               jour: j.jour,
@@ -420,6 +460,11 @@ const PlanningFormations = () => {
   };
 
   const toggleJourSelection = (jour) => {
+    const validDays = getValidDays(selectedFormation?.date_debut, selectedFormation?.date_fin);
+    if (!validDays.includes(jour)) {
+      console.warn(`Jour ${jour} is not valid for this formation`);
+      return;
+    }
     setCurrentSeance(prev => {
       const isSelected = prev.jours.some(j => j.jour === jour);
       const jours = isSelected
@@ -428,8 +473,8 @@ const PlanningFormations = () => {
             jour,
             heureDebut: '09:00',
             heureFin: '12:00',
-            salle: sallesDisponibles[0]?.nom || '',
-            salle_id: sallesDisponibles[0]?.id || null,
+            salle: '',
+            salle_id: null,
           }];
       return { ...prev, jours };
     });
@@ -455,6 +500,8 @@ const PlanningFormations = () => {
     formation.titre.toLowerCase().includes(searchTerm.toLowerCase()) ||
     formation.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const validDays = selectedFormation ? getValidDays(selectedFormation.date_debut, selectedFormation.date_fin) : JOURS_SEMAINE;
 
   return (
     <div className={`charge-formations-container ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
@@ -727,7 +774,13 @@ const PlanningFormations = () => {
                                         </span>
                                       </div>
                                       <div className="meta-item">
-                                        <span>Formateur: {planning.formateur || 'Non assigné'}</span>
+                                        <FiUser className="icon" />
+                                        <span>
+                                          {planning.formateur || 'Non assigné'}
+                                          <span className={`statut-badge ${planning.statut}`}>
+                                            ({planning.statut === 'en_attente' ? 'en attente' : planning.statut === 'accepte' ? 'accepté' : 'refusé'})
+                                          </span>
+                                        </span>
                                       </div>
                                     </div>
                                   </div>
@@ -809,16 +862,20 @@ const PlanningFormations = () => {
                       <div className="form-group">
                         <label>Jours de la semaine</label>
                         <div className="jours-selection">
-                          {JOURS_SEMAINE.map(jour => (
-                            <button
-                              key={jour}
-                              type="button"
-                              className={`jour-btn ${currentSeance.jours.some(j => j.jour === jour) ? 'selected' : ''}`}
-                              onClick={() => toggleJourSelection(jour)}
-                            >
-                              {jour}
-                            </button>
-                          ))}
+                          {validDays.length > 0 ? (
+                            validDays.map(jour => (
+                              <button
+                                key={jour}
+                                type="button"
+                                className={`jour-btn ${currentSeance.jours.some(j => j.jour === jour) ? 'selected' : ''}`}
+                                onClick={() => toggleJourSelection(jour)}
+                              >
+                                {jour}
+                              </button>
+                            ))
+                          ) : (
+                            <div className="no-jours">Aucun jour disponible</div>
+                          )}
                         </div>
                       </div>
 
@@ -876,8 +933,8 @@ const PlanningFormations = () => {
                                       jourObj.heureDebut,
                                       jourObj.heureFin,
                                       jourObj.id,
-                                      selectedFormation.date_debut,
-                                      selectedFormation.date_fin
+                                      currentSeance.dateDebut,
+                                      currentSeance.dateFin
                                     )}
                                   >
                                     {salle.nom}
@@ -916,6 +973,7 @@ const PlanningFormations = () => {
                         <motion.button
                           type="submit"
                           className="submit-btn"
+                          disabled={validDays.length === 0}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                         >

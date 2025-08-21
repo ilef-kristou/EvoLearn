@@ -55,7 +55,6 @@
   padding: 2rem;
 }
 
-
 .confirmation {
   position: fixed;
   top: 20px;
@@ -82,11 +81,11 @@
   font-size: 0.9rem;
 }
 
-
 option:disabled {
   color: #999;
   background-color: #f0f0f0;
 }
+
 .formation-identity {
   display: flex;
   align-items: flex-start;
@@ -143,7 +142,6 @@ option:disabled {
 
 .duration-badge {
   background-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(5px);
   padding: 0.4rem 1rem;
   border-radius: 50px;
   display: flex;
@@ -165,7 +163,6 @@ option:disabled {
   color: white;
   border: none;
   padding: 0.7rem 1rem;
-
   font-weight: 600;
   cursor: pointer;
   font-size: 0.9rem;
@@ -250,42 +247,43 @@ option:disabled {
   gap: 0.8rem;
 }
 
-.horaire-item {
+.jour-item {
   background-color: var(--light);
   border-radius: 8px;
   padding: 0.8rem;
   transition: all 0.2s ease;
 }
 
-.horaire-item:hover {
+.jour-item:hover {
   background-color: #f0f0f0;
 }
 
-.horaire-header {
+.jour-header {
   display: flex;
   align-items: center;
   gap: 0.6rem;
   margin-bottom: 0.3rem;
 }
 
-.jour {
+.jour-name {
   font-weight: 500;
   min-width: 70px;
   font-size: 0.95rem;
 }
 
-.heures {
-  font-weight: 500;
-  font-size: 0.95rem;
+.jour-details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-left: 1.5rem;
 }
 
-.horaire-salle {
+.salle-info {
   display: flex;
   align-items: center;
   gap: 0.4rem;
   color: var(--gray);
   font-size: 0.95rem;
-  margin-left: 1.5rem;
 }
 
 .seance-actions {
@@ -330,9 +328,14 @@ option:disabled {
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;
+  padding-top: 2rem;
   z-index: 1000;
-  backdrop-filter: blur(4px);
+  overflow-y: auto !important; /* Override any parent overflow: hidden */
+}
+
+.modal-container{
+  overflow:auto !important;
 }
 
 .modal-content {
@@ -340,9 +343,14 @@ option:disabled {
   border-radius: 12px;
   width: 100%;
   max-width: 500px;
-  max-height: 90vh;
-  overflow-y: auto;
+  height: 80vh; /* Fixed height to ensure scrollable area */
+  overflow-y: scroll !important; /* Force scrollbar, override parent */
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  padding: 1.5rem;
+  box-sizing: border-box;
+  position: relative;
+  will-change: transform, opacity; /* Optimize animations */
+  border: 1px solid #ccc; /* Temporary for debugging */
 }
 
 .modal-header {
@@ -374,6 +382,7 @@ option:disabled {
 
 form {
   padding: 1.25rem;
+  box-sizing: border-box;
 }
 
 .form-group {
@@ -391,11 +400,12 @@ form {
 .form-group input,
 .form-group select {
   width: 100%;
-  padding: 0.7rem 2.5rem;
+  padding: 0.7rem;
   border: 1px solid var(--light-gray);
   border-radius: 6px;
   font-size: 0.9rem;
   transition: all 0.3s ease;
+  box-sizing: border-box;
 }
 
 .form-group input:focus,
@@ -430,6 +440,7 @@ form {
   border-radius: 6px;
   padding: 1rem;
   margin-bottom: 0.8rem;
+  box-sizing: border-box;
 }
 
 .add-horaire, .remove-horaire {
@@ -545,6 +556,16 @@ form {
   .cancel-btn, .submit-btn {
     width: 100%;
   }
+
+  .modal-overlay {
+    padding: 1rem;
+  }
+
+  .modal-content {
+    height: 85vh; /* Slightly smaller for mobile */
+    margin: 1rem;
+    border: 1px solid #ccc; /* Temporary for debugging */
+  }
 }
 
 .repetition-badge {
@@ -597,18 +618,22 @@ form {
   color: #b59f00;
   text-transform: lowercase;
 }
+
 .statut-badge.en\ attente {
   background: #f3f4f6;
   color: #b59f00;
 }
+
 .statut-badge.accepté {
   background: #e8f5e9;
   color: #27ae60;
 }
+
 .statut-badge.refusé {
   background: #fbeaea;
   color: #EF4444;
 }
+
 .cause-refus {
   margin-top: 0.2em;
   font-size: 0.97em;
